@@ -112,7 +112,7 @@ Open your Vercel URL and log in with the email/password from step 2.
 At the **bottom of the left sidebar** you should see a small grey line:
 
 ```
-build 2026-08-29.6
+build 2026-08-30.1
 ```
 
 If that line is there, the latest code is live. Whenever you report a
@@ -133,5 +133,11 @@ check every tab.
   `WHATSAPP_API_URL` and `WHATSAPP_API_TOKEN` from your WhatsApp Business
   API provider. Reminders queue automatically either way; they only actually
   send once these are set.
+
+  Vercel's free plan allows a cron job to run only once a day, so the sending
+  job runs each morning at 4am and sends everything due in the next 24 hours.
+  That works fine for the default "remind 1 day before" setting. If you later
+  want reminders sent closer to the appointment time (say 2 hours before),
+  that needs Vercel's paid plan — tell me and I'll switch the schedule.
 
 Full technical detail is in `README.md`.

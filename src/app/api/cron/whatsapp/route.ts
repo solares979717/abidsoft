@@ -26,13 +26,21 @@ export async function GET(req: Request) {
   }
 
   const sb = createAdminClient();
+
+  // Vercel's free plan only allows one cron run per day, so this sweep has
+  // to cover a whole day at a time: anything due between now and the next
+  // run. Without the look-ahead window, a reminder scheduled for (say)
+  // 6pm would sit unsent until the following morning's run and arrive
+  // after the appointment had already passed.
+  const lookAhead = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
   const { data: due } = await sb.from("whatsapp_messages")
     .select("id, to_number, body, attempts")
     .eq("status", "scheduled")
-    .lte("scheduled_for", new Date().toISOString())
+    .lte("scheduled_for", lookAhead)
     .lt("attempts", 3)
     .order("scheduled_for")
-    .limit(25);
+    .limit(100);
 
   const rows = due ?? [];
   let sent = 0, failed = 0;
