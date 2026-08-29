@@ -86,7 +86,17 @@ html, body {
 .urdu {
   font-family: var(--font-urdu);
   direction: rtl;
-  line-height: 2.1;
+  /* Nastaliq is a sloping script — at the sizes Latin text is comfortable
+     at, it becomes unreadable. It needs roughly 1.4x the size and a lot
+     more room between lines or the descenders of one line collide with
+     the next. */
+  font-size: 1.35em;
+  line-height: 2.6;
+}
+.urdu .latin {
+  font-family: var(--font-sans);
+  font-size: 0.74em;   /* cancels the 1.35em above, back to normal size */
+  line-height: 1.5;
 }
 .urdu-inline {
   font-family: var(--font-urdu);

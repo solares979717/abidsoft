@@ -29,7 +29,7 @@ const uid = () => Math.random().toString(36).slice(2, 9);
  * in the history, and no second consultation fee.
  */
 export function ContinueVisit({
-  visitId, investigations, medicines, adviceOptions, hasPrescription, startOpen,
+  visitId, investigations, medicines, adviceOptions, hasPrescription, startOpen, recorded,
 }: {
   visitId: string;
   investigations: Inv[];
@@ -38,6 +38,9 @@ export function ContinueVisit({
   hasPrescription: boolean;
   /** Opened straight from the patient's visit list, so skip the prompt. */
   startOpen?: boolean;
+  /** A one-line reminder of what was already written at the first visit, so
+   *  the doctor can see it without the whole page repeating itself. */
+  recorded?: { complaints: string[]; diagnoses: string[]; date: string };
 }) {
   const [open, setOpen] = React.useState(!!startOpen);
   const [results, setResults] = React.useState<Record<string, { text: string; flag: string }>>(
@@ -118,6 +121,14 @@ export function ContinueVisit({
     <Card>
       <CardHead title="Continue this visit"
         action={<button className="text-[13px] text-ink-2" onClick={() => setOpen(false)}>Close</button>} />
+
+      {recorded && (
+        <div className="border-b border-line bg-canvas px-4 py-2.5 text-[13px] text-ink-2">
+          <span className="text-ink-3">Already recorded {recorded.date}:</span>{" "}
+          {[recorded.complaints.join(", "), recorded.diagnoses.join(", ")]
+            .filter(Boolean).join(" · ") || "nothing yet"}
+        </div>
+      )}
 
       <div className="space-y-5 p-4">
         {investigations.length > 0 && (

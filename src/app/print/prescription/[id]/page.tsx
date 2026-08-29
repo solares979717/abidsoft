@@ -81,7 +81,7 @@ export default async function PrintPrescription({
   ].filter(Boolean).join("\n");
 
   return (
-    <PrintFrame size="A5" whatsapp={p.phone} summary={waSummary}
+    <PrintFrame size={urduMode ? "A4" : "A5"} whatsapp={p.phone} summary={waSummary}
       langSwitch={{ current: urduMode ? "ur" : "en" }}
       backTo={`/patients/${rx.patient_id}?tab=visits`}>
       {urduMode ? (

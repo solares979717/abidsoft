@@ -70,6 +70,13 @@ export default async function VisitDetail({
         adviceOptions={(adviceRows ?? []).map((a) => a.text)}
         hasPrescription={!!rx}
         startOpen={startOpen === "1"}
+        recorded={{
+          date: fmtDate(v.visit_date),
+          complaints: ((v.visit_complaints as unknown as { complaint: string }[]) ?? [])
+            .map((c) => c.complaint),
+          diagnoses: ((v.visit_diagnoses as unknown as { diagnosis_text: string }[]) ?? [])
+            .map((x) => x.diagnosis_text),
+        }}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -175,18 +182,6 @@ export default async function VisitDetail({
           </ol>
         </Card>
       </div>
-
-      <ContinueVisit
-        visitId={v.id}
-        investigations={(v.visit_investigations as unknown as {
-          id: string; test_name: string; category: string; status: string;
-          result_text: string | null; result_flag: string | null;
-        }[]) ?? []}
-        medicines={meds ?? []}
-        adviceOptions={(adviceRows ?? []).map((a) => a.text)}
-        hasPrescription={!!rx}
-        startOpen={startOpen === "1"}
-      />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

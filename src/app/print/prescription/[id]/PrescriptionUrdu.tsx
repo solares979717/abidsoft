@@ -57,22 +57,22 @@ export function PrescriptionUrdu({
       <header className="mb-5 flex items-start justify-between gap-6 border-b-[3px] pb-3"
         style={{ borderColor: "#1656A6" }}>
         <div className="text-right">
-          <h1 className="text-[19px] font-semibold leading-tight">{clinic.name}</h1>
-          <p className="mt-0.5 text-[12px] text-black/70">{clinic.address}</p>
-          <p className="text-[12px] text-black/70" dir="ltr">
+          <h1 className="text-[20px] font-semibold leading-tight">{clinic.name}</h1>
+          <p className="mt-0.5 text-[13px] text-black/70">{clinic.address}</p>
+          <p className="text-[13px] text-black/70" dir="ltr">
             {[clinic.phone_1, clinic.phone_2].filter(Boolean).join("   ·   ")}
           </p>
         </div>
         <div className="shrink-0 text-left">
           <p className="text-[15px] font-semibold">{doctor.full_name}</p>
-          <p className="text-[12px] text-black/70">{doctor.qualification}</p>
-          <p className="text-[12px] text-black/70">{doctor.affiliation}</p>
+          <p className="text-[13px] text-black/70">{doctor.qualification}</p>
+          <p className="text-[13px] text-black/70">{doctor.affiliation}</p>
         </div>
       </header>
 
-      <section className="mb-4 flex items-start justify-between gap-4 rounded-[4px] bg-[#F5F7FA] px-3 py-2.5 text-[12px]">
+      <section className="mb-4 flex items-start justify-between gap-4 rounded-[4px] bg-[#F5F7FA] px-3 py-2.5 text-[13px]">
         <div>
-          <p className="text-[14px] font-semibold">{patient.full_name}</p>
+          <p className="text-[15px] font-semibold">{patient.full_name}</p>
           <p className="mt-0.5 text-black/70">
             <span dir="ltr">{patient.patient_no}</span>
             {patient.age && <> · {UR.age} {patient.age}</>}
@@ -86,20 +86,20 @@ export function PrescriptionUrdu({
       </section>
 
       {allergies.length > 0 && (
-        <p className="mb-4 rounded-[4px] border-[1.5px] px-3 py-2 text-[12px] font-semibold"
+        <p className="mb-4 rounded-[4px] border-[1.5px] px-3 py-2 text-[15px] font-semibold"
           style={{ borderColor: "#A81E1E", background: "#FBECEC" }}>
           ⚠ {UR.allergy} — {allergies.map((a) => [a.allergy_type, a.detail].filter(Boolean).join(": ")).join("، ")}
         </p>
       )}
 
       {vitalBits.length > 0 && (
-        <p className="mb-3 flex flex-wrap gap-x-4 rounded-[4px] bg-[#F5F7FA] px-3 py-2 text-[12px]">
+        <p className="mb-3 flex flex-wrap gap-x-4 rounded-[4px] bg-[#F5F7FA] px-3 py-2 text-[13px]">
           {vitalBits.map((t, i) => <span key={i} dir="rtl">{t}</span>)}
         </p>
       )}
 
       {complaints.length > 0 && (
-        <p className="mb-2 text-[12px]">
+        <p className="mb-2 text-[13px]">
           <span className="ml-1.5 text-black/60">{UR.complaint}:</span>
           {complaints.map((c) =>
             `${c.complaint}${c.duration_value ? ` (${urNum(String(c.duration_value))} ${ur(UR_DURATION, c.duration_unit ?? "")})` : ""}`
@@ -108,7 +108,7 @@ export function PrescriptionUrdu({
       )}
 
       {diagnoses.length > 0 && (
-        <p className="mb-4 text-[12px]">
+        <p className="mb-4 text-[13px]">
           <span className="ml-1.5 text-black/60">{UR.diagnosis}:</span>
           <span className="font-semibold">{diagnoses.join("، ")}</span>
         </p>
@@ -116,20 +116,20 @@ export function PrescriptionUrdu({
 
       <div className="mb-2 flex items-center gap-2 border-b-[1.5px] pb-1.5" style={{ borderColor: "#1656A6" }}>
         <span className="text-[22px] font-semibold leading-none" style={{ color: "#1656A6" }} dir="ltr">℞</span>
-        <span className="text-[12px] text-black/60">{UR.prescription}</span>
+        <span className="text-[13px] text-black/60">{UR.prescription}</span>
       </div>
 
       <ol className="mb-5 divide-y divide-[#E3E8EF]">
         {items.map((m, i) => (
           <li key={i} className="py-2.5 first:pt-1">
             {/* The medicine name itself stays in Latin script, left to right. */}
-            <p className="text-[13px] font-semibold">
+            <p className="text-[15px] font-semibold">
               <span className="ml-2 inline-block w-5 text-black/50">{urNum(i + 1)}.</span>
-              <span dir="ltr" style={{ fontFamily: "var(--font-sans)" }}>
+              <span dir="ltr" className="latin">
                 {m.medicine_name}{m.strength ? ` ${m.strength}` : ""}
               </span>
             </p>
-            <p className="pr-7 text-[12px] text-black/80">
+            <p className="pr-7 text-[13px] text-black/80">
               {[
                 ur(UR_DOSE, m.dose) || m.dose,
                 ur(UR_FREQUENCY, m.frequency),
@@ -138,7 +138,7 @@ export function PrescriptionUrdu({
               ].filter(Boolean).join("   ·   ")}
             </p>
             {(m.instructions?.length > 0 || m.instruction_other) && (
-              <p className="pr-7 pt-1 text-[11px]">
+              <p className="pr-7 pt-1 text-[12px]">
                 {[...(m.instructions ?? []).map((x) => ur(UR_INSTRUCTION, x)), m.instruction_other]
                   .filter(Boolean)
                   .map((tag, j) => (
@@ -154,16 +154,15 @@ export function PrescriptionUrdu({
       {tests.length > 0 && (
         <div className="mb-4">
           <div className="mb-1.5 border-b pb-1" style={{ borderColor: "#1656A6" }}>
-            <span className="text-[12px] text-black/60">{UR.investigations}</span>
+            <span className="text-[13px] text-black/60">{UR.investigations}</span>
           </div>
-          <ol className="text-[12px]">
+          <ol className="text-[13px]">
             {tests.map((t, i) => (
               <li key={i} className="py-0.5">
                 <span className="ml-2 inline-block w-5 text-black/50">{urNum(i + 1)}.</span>
-                <span dir="ltr" style={{ fontFamily: "var(--font-sans)" }}>{t.test_name}</span>
+                <span dir="ltr" className="latin">{t.test_name}</span>
                 {t.result_text && (
-                  <> — <span dir="ltr" className={t.result_flag === "abnormal" ? "font-semibold" : ""}
-                    style={{ fontFamily: "var(--font-sans)" }}>{t.result_text}</span></>
+                  <> — <span dir="ltr" className={`latin ${t.result_flag === "abnormal" ? "font-semibold" : ""}`}>{t.result_text}</span></>
                 )}
               </li>
             ))}
@@ -172,21 +171,21 @@ export function PrescriptionUrdu({
       )}
 
       {adviceParts.length > 0 && (
-        <div className="mb-4 text-[12px]">
+        <div className="mb-4 text-[13px]">
           <span className="ml-1.5 text-black/60">{UR.advice}:</span>
           {adviceParts.join("، ")}
         </div>
       )}
 
       {followUp && (
-        <p className="mb-4 inline-block rounded-[4px] px-3 py-1.5 text-[12px] font-medium"
+        <p className="mb-4 inline-block rounded-[4px] px-3 py-1.5 text-[13px] font-medium"
           style={{ background: "#EAF1FA", color: "#0E3C77" }}>
           {UR.followUp}: {urDate(followUp)}
         </p>
       )}
 
       <footer className="mt-14 flex justify-start">
-        <div className="w-48 border-t border-black pt-1 text-center text-[11px]">
+        <div className="w-48 border-t border-black pt-1 text-center text-[12px]">
           {doctor.full_name}
         </div>
       </footer>
