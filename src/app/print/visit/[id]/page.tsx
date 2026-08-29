@@ -15,7 +15,7 @@ export default async function PrintVisit({ params }: { params: Promise<{ id: str
       doctors(full_name, qualification, affiliation),
       visit_complaints(complaint, duration_value, duration_unit),
       vitals(*), physical_examinations(*), visit_diagnoses(diagnosis_text),
-      visit_investigations(test_name, category),
+      visit_investigations(test_name, category, result_text, result_flag),
       prescriptions(advice, prescription_items(medicine_name, strength, dose, frequency, duration, instructions)),
       followups(follow_up_date),
       invoices(net_total, paid_total, due_total)`)
@@ -42,7 +42,8 @@ export default async function PrintVisit({ params }: { params: Promise<{ id: str
 
   const complaints = (v.visit_complaints as unknown as C[]) ?? [];
   const diagnoses = (v.visit_diagnoses as unknown as { diagnosis_text: string }[]) ?? [];
-  const investigations = (v.visit_investigations as unknown as { test_name: string }[]) ?? [];
+  const investigations = (v.visit_investigations as unknown as
+    { test_name: string; result_text: string | null; result_flag: string | null }[]) ?? [];
   const meds = rx?.prescription_items ?? [];
 
   const waSummary = [
@@ -136,8 +137,24 @@ export default async function PrintVisit({ params }: { params: Promise<{ id: str
       </Block>
 
       <Block title="Investigations">
-        <p>{(v.visit_investigations as unknown as { test_name: string }[] ?? [])
-          .map((x) => x.test_name).join(", ") || "None ordered."}</p>
+        {investigations.length === 0 ? <p className="text-black/50">None ordered.</p> : (
+          <ul className="space-y-0.5">
+            {investigations.map((t, i) => (
+              <li key={i}>
+                {t.test_name}
+                {t.result_text && (
+                  <>
+                    {" — "}
+                    <span className={t.result_flag === "abnormal" ? "font-semibold" : ""}>
+                      {t.result_text}
+                    </span>
+                    {t.result_flag === "abnormal" && <span className="font-semibold"> (abnormal)</span>}
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </Block>
 
       <Block title="Prescription" accent>

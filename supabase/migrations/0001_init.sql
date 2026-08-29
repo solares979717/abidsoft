@@ -697,14 +697,24 @@ begin
 
   -- 1. patient master ---------------------------------------------------
   if v_patient is null then
-    insert into patients (clinic_id, full_name, phone, whatsapp, dob, gender, address,
-                          primary_doctor_id, created_by)
+    -- Only the name is required. Everything else is optional, because
+    -- people frequently don't have their number or date of birth with them.
+    -- If an age was typed instead of a date of birth, turn it into a date so
+    -- the age stays correct next year rather than being frozen.
+    insert into patients (clinic_id, full_name, phone, whatsapp, dob, dob_is_estimated,
+                          gender, address, primary_doctor_id, created_by)
     values (v_clinic,
             payload#>>'{patient,full_name}',
-            payload#>>'{patient,phone}',
+            nullif(payload#>>'{patient,phone}',''),
             nullif(payload#>>'{patient,whatsapp}',''),
-            (payload#>>'{patient,dob}')::date,
-            lower(payload#>>'{patient,gender}')::gender_t,
+            coalesce(
+              nullif(payload#>>'{patient,dob}','')::date,
+              case when nullif(payload#>>'{patient,age_years}','') is not null
+                   then (current_date - ((payload#>>'{patient,age_years}')::numeric * 365.25)::int)
+              end),
+            nullif(payload#>>'{patient,dob}','') is null
+              and nullif(payload#>>'{patient,age_years}','') is not null,
+            lower(nullif(payload#>>'{patient,gender}',''))::gender_t,
             nullif(payload#>>'{patient,address}',''),
             v_doctor, v_actor)
     returning id, patient_no into v_patient, v_no;
@@ -733,7 +743,14 @@ begin
   returning id into v_visit;
 
   if nullif(payload->>'appointment_id','') is not null then
-    update appointments set status = 'completed'
+    -- Close the appointment, and if it was a phone booking made before this
+    -- person was registered, attach it to the patient record just created so
+    -- the booking and the visit become one connected history.
+    update appointments
+       set status = 'completed',
+           patient_id = coalesce(patient_id, v_patient),
+           booking_name = null,
+           booking_phone = null
      where id = (payload->>'appointment_id')::uuid and clinic_id = v_clinic;
   end if;
 

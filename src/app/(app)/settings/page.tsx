@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Settings() {
   const sb = await createClient();
-  const [clinic, settings, doctors, medicines, diagnoses, investigations, templates] = await Promise.all([
+  const [clinic, settings, doctors, medicines, diagnoses, investigations, templates, advice] = await Promise.all([
     sb.from("clinics").select("*").limit(1).single(),
     sb.from("clinic_settings").select("*").limit(1).single(),
     sb.from("doctors").select("*").order("sort_order"),
@@ -14,6 +14,7 @@ export default async function Settings() {
     sb.from("investigation_catalog").select("id, name, category, price").order("name"),
     sb.from("prescription_templates").select("id, name, doctor_id, items, doctors(full_name)")
       .order("name"),
+    sb.from("advice_catalog").select("id, text").eq("is_active", true).order("sort_order"),
   ]);
 
   return (
@@ -28,6 +29,7 @@ export default async function Settings() {
         ...t,
         doctors: Array.isArray(t.doctors) ? (t.doctors[0] ?? null) : t.doctors,
       }))}
+      advice={advice.data ?? []}
     />
   );
 }

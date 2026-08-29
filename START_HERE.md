@@ -112,7 +112,7 @@ Open your Vercel URL and log in with the email/password from step 2.
 At the **bottom of the left sidebar** you should see a small grey line:
 
 ```
-build 2026-08-30.4
+build 2026-08-30.8
 ```
 
 If that line is there, the latest code is live. Whenever you report a
@@ -124,6 +124,12 @@ set a follow-up, complete the billing, and save. Then open their profile and
 check every tab.
 
 ---
+
+## If you already have patients in the database
+
+Run `supabase/UPGRADE_3.sql`, then `supabase/UPGRADE_4.sql`, once each in the SQL Editor. It adds phone bookings,
+the recycle bin, and storage reporting without touching any existing row.
+It ends with a self-test and cleans up after itself.
 
 ## Optional extras
 

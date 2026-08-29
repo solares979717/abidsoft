@@ -28,7 +28,7 @@ export default async function PrintPrescription({ params }: { params: Promise<{ 
       sb.from("patient_allergies").select("allergy_type, detail").eq("patient_id", rx.patient_id),
       sb.from("visit_complaints").select("complaint, duration_value, duration_unit")
         .eq("visit_id", rx.visit_id).order("sort_order"),
-      sb.from("visit_investigations").select("test_name, category").eq("visit_id", rx.visit_id),
+      sb.from("visit_investigations").select("test_name, category, result_text, result_flag").eq("visit_id", rx.visit_id),
     ]);
 
   const p = rx.patients as unknown as { full_name: string; patient_no: string; dob: string; gender: string; phone: string };
@@ -136,7 +136,14 @@ export default async function PrintPrescription({ params }: { params: Promise<{ 
               <li key={i} className="py-0.5">
                 <span className="data mr-2 inline-block w-4 text-black/50">{i + 1}.</span>
                 {t.test_name}
-                <span className="text-black/50"> · {t.category}</span>
+                {t.result_text ? (
+                  <>
+                    {" — "}
+                    <span className={t.result_flag === "abnormal" ? "font-semibold" : ""}>
+                      {t.result_text}
+                    </span>
+                  </>
+                ) : <span className="text-black/50"> · {t.category}</span>}
               </li>
             ))}
           </ol>

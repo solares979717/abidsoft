@@ -5,6 +5,7 @@ import { Card, CardHead } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Select, Input, FormRow } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
+import { compressImage } from "@/lib/compressImage";
 import { useRouter } from "next/navigation";
 
 const TYPES: { value: string; label: string }[] = [
@@ -27,8 +28,17 @@ export function DocumentUpload({ patientId, visitId }: { patientId: string; visi
     if (!file) return;
     if (file.size > 15 * 1024 * 1024) return toast("File is larger than 15 MB.", "error");
     setBusy(true);
-    const path = `${patientId}/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
-    const { error } = await sb.storage.from("documents").upload(path, file);
+
+    // Photos are shrunk first so the 1 GB free storage lasts years instead
+    // of months. PDFs pass through untouched.
+    const toUpload = await compressImage(file);
+    if (toUpload.size < file.size) {
+      const saved = Math.round((1 - toUpload.size / file.size) * 100);
+      if (saved >= 20) toast(`Image compressed — ${saved}% smaller`);
+    }
+
+    const path = `${patientId}/${Date.now()}-${toUpload.name.replace(/[^\w.\-]/g, "_")}`;
+    const { error } = await sb.storage.from("documents").upload(path, toUpload);
     if (error) { setBusy(false); return toast("Upload failed. Try again.", "error"); }
 
     const { data: { user } } = await sb.auth.getUser();
@@ -36,7 +46,8 @@ export function DocumentUpload({ patientId, visitId }: { patientId: string; visi
     const { error: e2 } = await sb.from("documents").insert({
       clinic_id: prof!.clinic_id, patient_id: patientId, visit_id: visitId ?? null,
       doc_type: type, description: desc, storage_path: path,
-      file_name: file.name, mime_type: file.type, file_size: file.size, uploaded_by: user!.id,
+      file_name: toUpload.name, mime_type: toUpload.type, file_size: toUpload.size,
+      uploaded_by: user!.id,
     });
     setBusy(false);
     if (e2) return toast("Saved the file but not the record. Try again.", "error");

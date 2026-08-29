@@ -334,6 +334,44 @@ the consultation workspace, on top of last round's `minmax(0,1fr)` grid
 fix — belt-and-suspenders against the same class of CSS Grid sizing bug,
 in case any deeply nested element ever asserts its own minimum width again.
 
+## Rounds 1 and 2 — what was added
+
+**Appointments**
+- Opens on **Upcoming** — every appointment from now on, soonest first, so a
+  follow-up booked weeks ahead is visible without hunting for it.
+- Tabs: Upcoming · Today · Week · Month · Follow-ups · **Missed** (booked, the
+  time passed, never marked seen — worth a phone call).
+- **Phone bookings**: "Someone new" takes just a name and number for a caller
+  who isn't registered yet. It shows as *not registered*, and
+  "Register & start visit" opens the consultation prefilled; saving registers
+  them and attaches the booking to the new patient in one transaction.
+
+**Dashboard**
+- **Follow-ups due** — who should be coming back, overdue ones in red.
+- **Today's money** — cash, online, collected and billed, for closing the register.
+- Missed-appointment count, linked to that view.
+
+**Consultation**
+- **Last visit panel** at the top: previous diagnosis, medicines and tests,
+  without leaving the form.
+- Saving goes straight to the prescription, which has Print and Send on WhatsApp.
+
+**Billing**
+- Dues sorted **oldest first**, with age shown (amber past 30 days, red past 60).
+- **Remind** button per due — opens WhatsApp with the amount and invoice number.
+
+**Backup and storage**
+- Nightly backup of every table as CSV, delivered to `BACKUP_WEBHOOK_URL`.
+  Settings → Backup also downloads one on demand.
+- Settings → **Storage** shows database and file usage against the free-tier
+  limits, warning past 80%.
+- **Images are compressed before upload** — a 5 MB phone photo of an X-ray
+  becomes roughly 500 KB, so the 1 GB file limit lasts years rather than months.
+- **Recycle bin**: soft-deleted records keep a deletion time and can be
+  restored for 30 days.
+
+Requires `supabase/UPGRADE_3.sql` to be run once on an existing database.
+
 ## Database setup — one file
 
 Run **`supabase/SETUP.sql`** once, on a new and empty Supabase project:

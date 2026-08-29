@@ -15,12 +15,16 @@ export default async function Billing({
   const sb = await createClient();
 
   let q = sb.from("invoices")
-    .select("id, invoice_no, created_at, charges_total, discount, net_total, paid_total, due_total, is_void, patient_id, visit_id, patients(full_name, patient_no), doctors(full_name)")
+    .select("id, invoice_no, created_at, charges_total, discount, net_total, paid_total, due_total, is_void, patient_id, visit_id, patients(full_name, patient_no, phone), doctors(full_name)")
     .eq("is_deleted", false);
   if (filter === "due") q = q.gt("due_total", 0);
 
-  const { data } = await q.order("created_at", { ascending: false }).limit(80);
+  // Oldest unpaid first — a three-month-old due matters more than yesterday's.
+  const { data } = await q
+    .order("created_at", { ascending: filter === "due" })
+    .limit(80);
   const rows = data ?? [];
+  const dayMs = 24 * 60 * 60 * 1000;
   const outstanding = rows.reduce((a, r) => a + Number(r.due_total ?? 0), 0);
 
   return (
@@ -57,11 +61,20 @@ export default async function Billing({
             </thead>
             <tbody className="divide-y divide-line">
               {rows.map((r) => {
-                const p = r.patients as unknown as { full_name: string; patient_no: string } | null;
+                const p = r.patients as unknown as { full_name: string; patient_no: string; phone: string | null } | null;
                 return (
                   <tr key={r.id} className="hover:bg-canvas">
                     <td className="data px-4 py-2.5 text-[13px]">{r.invoice_no}</td>
-                    <td className="data px-4 text-[13px]">{fmtDate(r.created_at)}</td>
+                    <td className="data px-4 text-[13px]">
+                      {fmtDate(r.created_at)}
+                      {Number(r.due_total) > 0 && (() => {
+                        const days = Math.floor((Date.now() - new Date(r.created_at).getTime()) / dayMs);
+                        if (days < 7) return null;
+                        const tone = days >= 60 ? "text-danger font-semibold"
+                          : days >= 30 ? "text-warn" : "text-ink-3";
+                        return <span className={`ml-1.5 ${tone}`}>· {days}d</span>;
+                      })()}
+                    </td>
                     <td className="px-4 text-[14px]">
                       <Link href={`/patients/${r.patient_id}`}>{p?.full_name}</Link>
                       <span className="data ml-2 text-[12px] text-ink-3">{p?.patient_no}</span>
@@ -80,6 +93,17 @@ export default async function Billing({
                       {Number(r.due_total) > 0 && (
                         <PaymentButton invoiceId={r.id} patientId={r.patient_id}
                           due={Number(r.due_total)} />
+                      )}
+                      {Number(r.due_total) > 0 && p?.phone && (
+                        <a
+                          href={`https://wa.me/${(p.phone.replace(/\D/g, "").replace(/^0/, "92"))}?text=${encodeURIComponent(
+                            `Assalam o Alaikum ${p.full_name}, this is a reminder from Shafiq Medical & Diagnostic Center. An amount of Rs ${Number(r.due_total).toLocaleString()} is outstanding on invoice ${r.invoice_no}. Thank you.`
+                          )}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="ml-3 text-[13px] font-medium text-ok"
+                        >
+                          Remind
+                        </a>
                       )}
                       {r.visit_id && (
                         <Link href={`/visits/${r.visit_id}`} className="ml-3 text-[13px] text-ink-2">Visit</Link>

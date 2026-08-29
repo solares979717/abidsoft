@@ -12,7 +12,8 @@ import { Plus } from "lucide-react";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const SECTIONS = ["Clinic profile", "Doctors", "Appointment settings", "Medicines",
-  "Diagnoses", "Investigations", "Prescription templates", "WhatsApp", "Patient portal", "Security"];
+  "Diagnoses", "Investigations", "Prescription templates", "WhatsApp", "Patient portal",
+  "Advice", "Storage", "Backup", "Security"];
 
 type Row = Record<string, unknown> | null;
 type RxTemplateItem = {
@@ -25,7 +26,7 @@ type RxTemplate = {
 };
 
 export function SettingsClient({
-  clinic, settings, doctors, medicines, diagnoses, investigations, templates,
+  clinic, settings, doctors, medicines, diagnoses, investigations, templates, advice,
 }: {
   clinic: Row; settings: Row;
   doctors: Record<string, unknown>[];
@@ -33,9 +34,12 @@ export function SettingsClient({
   diagnoses: { id: string; name: string }[];
   investigations: { id: string; name: string; category: string; price: number }[];
   templates: RxTemplate[];
+  advice: { id: string; text: string }[];
 }) {
   const [tab, setTab] = React.useState(SECTIONS[0]);
   const [busy, setBusy] = React.useState(false);
+  const [usage, setUsage] = React.useState<Record<string, number> | null>(null);
+  const [usageError, setUsageError] = React.useState("");
   const [c, setC] = React.useState(clinic ?? {});
   const [s, setS] = React.useState(settings ?? {});
   const toast = useToast();
@@ -43,6 +47,16 @@ export function SettingsClient({
   const sb = createClient();
 
   const clinicId = (clinic?.id as string) ?? "";
+
+  // Loaded only when the Storage tab is opened — it's a heavier query and
+  // most visits to Settings don't need it.
+  React.useEffect(() => {
+    if (tab !== "Storage" || usage) return;
+    sb.rpc("storage_usage").then(({ data, error }) => {
+      if (error) setUsageError("Couldn't read storage usage. Run UPGRADE_3.sql if you haven't yet.");
+      else setUsage(data as Record<string, number>);
+    });
+  }, [tab, usage, sb]);
 
   async function saveClinic() {
     setBusy(true);
@@ -330,6 +344,91 @@ export function SettingsClient({
         </Card>
       )}
 
+      {tab === "Advice" && (
+        <CatalogCard
+          title="Patient advice" count={advice.length}
+          note="Ticked during a consultation instead of typing it out each time. Appears on the printed prescription and in the WhatsApp summary."
+          onAdd={() => {
+            const text = prompt('Advice, e.g. "Avoid cold drinks"');
+            if (text) addCatalog("advice_catalog", { text, sort_order: advice.length + 1 }, "Advice");
+          }}
+          rows={advice.map((a) => ({ id: a.id, main: a.text }))}
+        />
+      )}
+
+      {tab === "Storage" && (
+        <Card>
+          <CardHead title="Storage" sub="Supabase free plan limits" />
+          {usageError && (
+            <p className="border-b border-line bg-danger-bg px-4 py-2 text-[13px] text-danger">
+              {usageError}
+            </p>
+          )}
+          {!usage && !usageError && (
+            <p className="px-4 py-6 text-center text-[13px] text-ink-3">Reading usage…</p>
+          )}
+          {usage && (
+            <div className="space-y-5 p-4">
+              <UsageBar label="Database (patients, visits, prescriptions, billing)"
+                used={usage.database_bytes} limit={usage.database_limit_bytes} />
+              <UsageBar label="Files (lab reports, imaging, documents)"
+                used={usage.files_bytes} limit={usage.files_limit_bytes} />
+              <div className="grid grid-cols-3 gap-3 border-t border-line pt-4 text-center">
+                {[["Patients", usage.patients], ["Visits", usage.visits], ["Files", usage.documents]]
+                  .map(([l, v]) => (
+                    <div key={l as string}>
+                      <p className="label">{l}</p>
+                      <p className="data mt-0.5 text-[18px]">{v as number}</p>
+                    </div>
+                  ))}
+              </div>
+              <p className="text-[12px] text-ink-3">
+                Text records use very little space — the database limit is unlikely to be a problem
+                for years. Uploaded files are what fill up, so images are compressed automatically
+                before upload.
+              </p>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {tab === "Backup" && (
+        <Card>
+          <CardHead title="Backup" sub="A copy of everything, kept outside Supabase" />
+          <div className="space-y-4 p-4 text-[14px] text-ink-2">
+            <p>
+              Every patient, visit, prescription, investigation and payment lives in one
+              Supabase project. If that account is ever lost, suspended, or damaged by a
+              mistaken query, the whole record goes with it. A backup is the only thing
+              that makes that recoverable.
+            </p>
+            <div className="rounded-[6px] border border-line bg-canvas p-3">
+              <p className="label mb-1">Automatic</p>
+              <p className="text-[13px]">
+                A full backup runs every night at 8pm and is sent wherever
+                <span className="data"> BACKUP_WEBHOOK_URL </span>
+                points. If that isn&apos;t set, the nightly job still runs but has nowhere to
+                deliver to — take manual copies below until it is configured.
+              </p>
+            </div>
+            <div>
+              <p className="label mb-1">Right now</p>
+              <p className="mb-2 text-[13px]">
+                Downloads one CSV file containing every table. Opens in Excel. Keep it on
+                the clinic computer or in Google Drive.
+              </p>
+              <a href="/api/backup" download>
+                <Button variant="secondary">Download backup now</Button>
+              </a>
+            </div>
+            <p className="text-[12px] text-ink-3">
+              A backup is a copy, not a substitute — it can restore data, but it is not a
+              second running system. Take one before any risky change.
+            </p>
+          </div>
+        </Card>
+      )}
+
       {tab === "Security" && (
         <Card>
           <CardHead title="Security" />
@@ -381,5 +480,29 @@ function CatalogCard({
         )}
       </ul>
     </Card>
+  );
+}
+
+function UsageBar({ label, used, limit }: { label: string; used: number; limit: number }) {
+  const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
+  const tone = pct >= 80 ? "bg-danger" : pct >= 60 ? "bg-warn" : "bg-primary";
+  const mb = (n: number) => `${(n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+  return (
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between">
+        <span className="text-[13px] text-ink-2">{label}</span>
+        <span className={`data text-[13px] ${pct >= 80 ? "font-semibold text-danger" : "text-ink-2"}`}>
+          {mb(used)} of {mb(limit)} · {pct.toFixed(pct < 1 ? 1 : 0)}%
+        </span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-canvas">
+        <div className={`h-full rounded-full ${tone}`} style={{ width: `${Math.max(pct, 0.5)}%` }} />
+      </div>
+      {pct >= 80 && (
+        <p className="mt-1.5 text-[12px] font-medium text-danger">
+          Over 80% full — free up space or upgrade the Supabase plan before uploads start failing.
+        </p>
+      )}
+    </div>
   );
 }

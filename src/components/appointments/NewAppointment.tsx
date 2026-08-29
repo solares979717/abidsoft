@@ -26,6 +26,10 @@ export function NewAppointment({
       return p ? { id: p.id, label: p.full_name } : null;
     })()
   );
+  // A booking taken over the phone from someone not yet in the system.
+  const [newPerson, setNewPerson] = React.useState(false);
+  const [bookingName, setBookingName] = React.useState("");
+  const [bookingPhone, setBookingPhone] = React.useState("");
   const [doctorId, setDoctorId] = React.useState(doctors[0]?.id ?? "");
   const [date, setDate] = React.useState(isoDate(new Date()));
   const [time, setTime] = React.useState("10:00");
@@ -36,13 +40,21 @@ export function NewAppointment({
   const router = useRouter();
 
   async function create() {
-    if (!patient) return toast("Choose a patient first.", "error");
+    if (newPerson) {
+      if (!bookingName.trim()) return toast("Enter the name given on the phone.", "error");
+    } else if (!patient) {
+      return toast("Choose a patient, or switch to booking for someone new.", "error");
+    }
     setBusy(true);
     const sb = createClient();
     const { data: { user } } = await sb.auth.getUser();
     const { data: prof } = await sb.from("profiles").select("clinic_id").eq("id", user!.id).single();
     const { error } = await sb.from("appointments").insert({
-      clinic_id: prof!.clinic_id, patient_id: patient.id, doctor_id: doctorId,
+      clinic_id: prof!.clinic_id,
+      patient_id: newPerson ? null : patient!.id,
+      booking_name: newPerson ? bookingName.trim() : null,
+      booking_phone: newPerson ? bookingPhone.trim() || null : null,
+      doctor_id: doctorId,
       scheduled_at: new Date(`${date}T${time}`).toISOString(),
       appt_type: type, status: "scheduled", notes, created_by: user!.id,
     });
@@ -68,6 +80,39 @@ export function NewAppointment({
         }
       >
         <div className="space-y-4">
+          <div className="flex gap-1 rounded-[6px] bg-canvas p-1">
+            <button
+              onClick={() => setNewPerson(false)}
+              className={`flex-1 rounded-[4px] px-3 py-1.5 text-[13px] font-medium ${
+                !newPerson ? "bg-paper text-primary shadow-[var(--shadow-card)]" : "text-ink-2"}`}>
+              Existing patient
+            </button>
+            <button
+              onClick={() => setNewPerson(true)}
+              className={`flex-1 rounded-[4px] px-3 py-1.5 text-[13px] font-medium ${
+                newPerson ? "bg-paper text-primary shadow-[var(--shadow-card)]" : "text-ink-2"}`}>
+              Someone new
+            </button>
+          </div>
+
+          {newPerson ? (
+            <>
+              <p className="text-[12px] text-ink-3">
+                For a booking taken over the phone. Full registration happens when they
+                arrive — the consultation opens with these details already filled in.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormRow label="Name" required>
+                  <Input value={bookingName} onChange={(e) => setBookingName(e.target.value)}
+                    placeholder="Name given on the phone" />
+                </FormRow>
+                <FormRow label="Phone">
+                  <Input mono value={bookingPhone} onChange={(e) => setBookingPhone(e.target.value)}
+                    placeholder="03XX XXXXXXX" />
+                </FormRow>
+              </div>
+            </>
+          ) : (
           <FormRow label="Patient" required>
             {patient ? (
               <div className="flex items-center justify-between rounded-[6px] border border-line-strong px-3 py-2">
@@ -82,6 +127,7 @@ export function NewAppointment({
               />
             )}
           </FormRow>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <FormRow label="Doctor" required>
               <Select value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>

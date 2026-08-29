@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Card, CardHead } from "@/components/ui/Card";
 import { money, fmtDate } from "@/lib/utils";
+import { ContinueVisit } from "@/components/consultation/ContinueVisit";
 
 export const dynamic = "force-dynamic";
 
@@ -15,12 +16,18 @@ export default async function VisitDetail({ params }: { params: Promise<{ id: st
       doctors(full_name, qualification),
       visit_complaints(complaint, duration_value, duration_unit),
       vitals(*), physical_examinations(*), visit_diagnoses(diagnosis_text, is_primary),
-      visit_investigations(test_name, category, status),
+      visit_investigations(id, test_name, category, status, result_text, result_flag),
       prescriptions(id, advice, prescription_items(medicine_name, strength, dose, frequency, duration, route, instructions)),
       followups(follow_up_date, interval_days),
       invoices(id, invoice_no, charges_total, discount, net_total, paid_total, due_total)`)
     .eq("id", id).single();
   if (!v) notFound();
+
+  const [{ data: meds }, { data: adviceRows }] = await Promise.all([
+    sb.from("medicines").select("id, name, strength").eq("is_active", true)
+      .order("name").limit(600),
+    sb.from("advice_catalog").select("text").eq("is_active", true).order("sort_order"),
+  ]);
 
   const p = v.patients as unknown as { id: string; full_name: string; patient_no: string; phone: string };
   const d = v.doctors as unknown as { full_name: string; qualification: string };
@@ -46,6 +53,17 @@ export default async function VisitDetail({ params }: { params: Promise<{ id: st
           {inv && <Link href={`/print/receipt/${inv.id}`} className="text-ink-2">Print receipt</Link>}
         </div>
       </div>
+
+      <ContinueVisit
+        visitId={v.id}
+        investigations={(v.visit_investigations as unknown as {
+          id: string; test_name: string; category: string; status: string;
+          result_text: string | null; result_flag: string | null;
+        }[]) ?? []}
+        medicines={meds ?? []}
+        adviceOptions={(adviceRows ?? []).map((a) => a.text)}
+        hasPrescription={!!rx}
+      />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -150,6 +168,17 @@ export default async function VisitDetail({ params }: { params: Promise<{ id: st
           </ol>
         </Card>
       </div>
+
+      <ContinueVisit
+        visitId={v.id}
+        investigations={(v.visit_investigations as unknown as {
+          id: string; test_name: string; category: string; status: string;
+          result_text: string | null; result_flag: string | null;
+        }[]) ?? []}
+        medicines={meds ?? []}
+        adviceOptions={(adviceRows ?? []).map((a) => a.text)}
+        hasPrescription={!!rx}
+      />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

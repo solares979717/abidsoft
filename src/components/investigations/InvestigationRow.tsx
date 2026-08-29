@@ -3,6 +3,7 @@ import * as React from "react";
 import { createClient } from "@/lib/supabase/client";
 import { INVESTIGATION_STATUS } from "@/lib/constants";
 import { useToast } from "@/components/ui/Toast";
+import { compressImage } from "@/lib/compressImage";
 import { useRouter } from "next/navigation";
 import { Upload, FileText } from "lucide-react";
 
@@ -30,8 +31,10 @@ export function InvestigationRow({
     router.refresh();
   }
 
-  async function upload(file: File) {
+  async function upload(original: File) {
     setBusy(true);
+    // Photographed reports get shrunk; PDFs pass through untouched.
+    const file = await compressImage(original);
     const path = `${id}/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
     const { error } = await sb.storage.from("reports").upload(path, file);
     if (error) { setBusy(false); return toast("Upload failed. Try again.", "error"); }

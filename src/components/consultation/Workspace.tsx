@@ -54,7 +54,7 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 
 export function Workspace({
   doctors, catalogs, patient, appointmentId, previousVisitId, previousRx, defaultFee, knownAllergies,
-  templates,
+  templates, prefillName, prefillPhone, lastVisit, adviceOptions,
 }: {
   doctors: Doctor[];
   catalogs: Catalogs;
@@ -65,6 +65,17 @@ export function Workspace({
   defaultFee: number;
   knownAllergies?: string[];
   templates?: RxTemplate[];
+  /** Name and phone taken over the telephone when the appointment was booked,
+   *  before this person was a registered patient. */
+  prefillName?: string;
+  prefillPhone?: string;
+  /** Headline facts from this patient's previous visit. */
+  lastVisit?: {
+    date: string; doctor: string | null; diagnoses: string[];
+    investigations: string[]; medicines: string[];
+  } | null;
+  /** Standing advice the clinic uses often, ticked instead of typed. */
+  adviceOptions?: string[];
 }) {
   const sb = createClient();
   const router = useRouter();
@@ -77,12 +88,16 @@ export function Workspace({
   const [catalogError, setCatalogError] = React.useState("");
 
   // 1 basic
-  const [name, setName] = React.useState(patient?.full_name ?? "");
-  const [phone, setPhone] = React.useState(patient?.phone ?? "");
+  const [name, setName] = React.useState(patient?.full_name ?? prefillName ?? "");
+  const [phone, setPhone] = React.useState(patient?.phone ?? prefillPhone ?? "");
   const [wa, setWa] = React.useState(patient?.whatsapp ?? "");
   const [sameWa, setSameWa] = React.useState(!patient);
   const [dob, setDob] = React.useState(patient?.dob ?? "");
   const [gender, setGender] = React.useState(patient?.gender ?? "");
+  // Most people don't know their date of birth but do know roughly how old
+  // they are. Typing "36" is stored as a date behind the scenes so the age
+  // stays right next year instead of being frozen at 36 forever.
+  const [ageYears, setAgeYears] = React.useState("");
   const [address, setAddress] = React.useState(patient?.address ?? "");
   const [doctorId, setDoctorId] = React.useState(
     patient?.primary_doctor_id ?? doctors[0]?.id ?? ""
@@ -120,6 +135,7 @@ export function Workspace({
   // 10 prescription
   const [rx, setRx] = React.useState<RxItem[]>([]);
   const [advice, setAdvice] = React.useState("");
+  const [advicePicks, setAdvicePicks] = React.useState<string[]>([]);
 
   // 11 follow-up
   const [fuDays, setFuDays] = React.useState<number | null>(null);
@@ -311,8 +327,8 @@ export function Workspace({
   /* ------------------------------------------------ save */
   async function save() {
     setError("");
-    if (isNew && (!name.trim() || !phone.trim() || !dob || !gender)) {
-      setError("Name, phone, date of birth and gender are required.");
+    if (isNew && !name.trim()) {
+      setError("The patient's name is required.");
       setOpen(1); return;
     }
     if (!doctorId) { setError("Select a doctor."); setOpen(1); return; }
@@ -320,7 +336,7 @@ export function Workspace({
     setSaving(true);
     const payload = {
       patient_id: patient?.id ?? null,
-      patient: { full_name: name, phone, whatsapp: wa, dob, gender, address },
+      patient: { full_name: name, phone, whatsapp: wa, dob, age_years: ageYears, gender, address },
       doctor_id: doctorId,
       visit_type: visitType,
       appointment_id: appointmentId ?? null,
@@ -345,7 +361,7 @@ export function Workspace({
       investigations,
       prescription_items: rx.map((r, i) => ({ ...r, sort_order: i })),
       copied_from_id: copiedFrom,
-      advice,
+      advice: [...advicePicks, advice.trim()].filter(Boolean).join(". "),
       followup: noFollowUp
         ? { type: "none" }
         : fuDate
@@ -396,6 +412,28 @@ export function Workspace({
     <div className="grid gap-5 overflow-x-auto lg:grid-cols-[minmax(0,1fr)_300px]">
       {/* ------------------------------------------------ sections */}
       <div className="min-w-0 space-y-2.5">
+        {lastVisit && (
+          <div className="rounded-[6px] border border-line bg-primary-wash/40 px-4 py-3">
+            <p className="label mb-1.5 text-primary">
+              Last visit — {fmtDate(lastVisit.date)}{lastVisit.doctor ? ` · ${lastVisit.doctor}` : ""}
+            </p>
+            <div className="space-y-0.5 text-[13px] text-ink-2">
+              {lastVisit.diagnoses.length > 0 && (
+                <p><span className="text-ink-3">Diagnosis:</span> {lastVisit.diagnoses.join(", ")}</p>
+              )}
+              {lastVisit.medicines.length > 0 && (
+                <p><span className="text-ink-3">Medicines:</span> {lastVisit.medicines.join(", ")}</p>
+              )}
+              {lastVisit.investigations.length > 0 && (
+                <p><span className="text-ink-3">Tests:</span> {lastVisit.investigations.join(", ")}</p>
+              )}
+              {lastVisit.diagnoses.length === 0 && lastVisit.medicines.length === 0 &&
+               lastVisit.investigations.length === 0 && (
+                <p className="text-ink-3">No diagnosis, medicines or tests were recorded.</p>
+              )}
+            </div>
+          </div>
+        )}
         {catalogError && (
           <div className="flex items-start gap-2 rounded-[6px] border border-danger bg-danger-bg px-3 py-2.5 text-[13px] text-danger">
             <AlertTriangle size={16} className="mt-0.5 shrink-0" />
@@ -425,7 +463,7 @@ export function Workspace({
             <FormRow label="Patient name" required>
               <Input value={name} onChange={(e) => setName(e.target.value)} disabled={!isNew} />
             </FormRow>
-            <FormRow label="Phone number" required>
+            <FormRow label="Phone number">
               <Input mono value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="03XX XXXXXXX" />
             </FormRow>
             <FormRow label="WhatsApp number">
@@ -435,10 +473,20 @@ export function Workspace({
                 Same as phone
               </label>
             </FormRow>
-            <FormRow label="Date of birth" required hint={dob ? `Age ${ageFromDob(dob)}` : undefined}>
+            <FormRow label="Age"
+              hint={dob ? `From date of birth: ${ageFromDob(dob)}` : undefined}>
+              <div className="flex items-center gap-2">
+                <Input mono type="number" min={0} max={120} className="w-24"
+                  value={ageYears} disabled={!isNew || !!dob}
+                  onChange={(e) => setAgeYears(e.target.value)} placeholder="36" />
+                <span className="text-[13px] text-ink-3">years</span>
+              </div>
+            </FormRow>
+            <FormRow label="Date of birth"
+              hint={ageYears && !dob ? "Optional — age above is enough" : undefined}>
               <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} disabled={!isNew} />
             </FormRow>
-            <FormRow label="Gender" required>
+            <FormRow label="Gender">
               <ChipGrid options={["Male", "Female"]} multiple={false}
                 value={gender ? [gender] : []} onChange={(v) => setGender(v[0] ?? "")} />
             </FormRow>
@@ -743,8 +791,12 @@ export function Workspace({
               </div>
             ))}
           </div>
-          <FormRow label="General advice" className="mt-4">
-            <Textarea value={advice} onChange={(e) => setAdvice(e.target.value)} />
+          <FormRow label="Advice for the patient" className="mt-4">
+            {adviceOptions && adviceOptions.length > 0 && (
+              <ChipGrid options={adviceOptions} value={advicePicks} onChange={setAdvicePicks} />
+            )}
+            <Textarea className="mt-2" rows={2} placeholder="Anything else…"
+              value={advice} onChange={(e) => setAdvice(e.target.value)} />
           </FormRow>
           {rx.length > 0 && (
             <Button type="button" variant="secondary" size="sm" className="mt-3" onClick={saveAsTemplate}>
