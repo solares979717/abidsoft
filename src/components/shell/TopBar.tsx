@@ -25,8 +25,8 @@ export function TopBar({ userName }: { userName: string }) {
   }
 
   return (
-    <header className="no-print sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-line bg-paper px-4 lg:px-6">
-      <span className="display shrink-0 text-[15px] text-ink lg:hidden">Shafiq Medical</span>
+    <header className="no-print sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-paper pl-14 pr-4 lg:gap-4 lg:px-6">
+      <span className="display hidden shrink-0 text-[15px] text-ink sm:block lg:hidden">Shafiq Medical</span>
       <GlobalSearch />
       <div className="ml-auto flex items-center gap-3">
         {!online && (

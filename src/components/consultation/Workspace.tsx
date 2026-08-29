@@ -376,9 +376,15 @@ export function Workspace({
       setError(`Couldn't save the visit. Nothing was written — try again. (${error.message})`);
       return;
     }
-    const res = data as { patient_id: string; visit_id: string };
+    const res = data as { patient_id: string; visit_id: string; prescription_id: string | null };
     toast("Visit saved");
-    router.push(`/patients/${res.patient_id}?tab=visits`);
+    // If a prescription was written, go straight to it — that's the sheet the
+    // doctor hands over or sends on WhatsApp, so it saves a step at the exact
+    // moment the patient is still sitting there. Otherwise fall back to the
+    // patient's visit history.
+    router.push(res.prescription_id
+      ? `/print/prescription/${res.prescription_id}`
+      : `/patients/${res.patient_id}?tab=visits`);
     router.refresh();
   }
 

@@ -32,7 +32,7 @@ export default async function PrintVisit({ params }: { params: Promise<{ id: str
   const allergies = (allergyRows ?? [])
     .filter((a) => a.allergy_type && a.allergy_type !== "No Known Allergy");
 
-  const p = v.patients as unknown as { full_name: string; patient_no: string; dob: string; gender: string };
+  const p = v.patients as unknown as { full_name: string; patient_no: string; dob: string; gender: string; phone: string };
   const d = v.doctors as unknown as { full_name: string; qualification: string; affiliation: string };
   const vt = (v.vitals as unknown as Record<string, number>[])?.[0];
   const ex = (v.physical_examinations as unknown as Record<string, string>[])?.[0];
@@ -40,8 +40,36 @@ export default async function PrintVisit({ params }: { params: Promise<{ id: str
   const inv = (v.invoices as unknown as Record<string, number>[])?.[0];
   const fu = (v.followups as unknown as { follow_up_date: string }[])?.[0];
 
+  const complaints = (v.visit_complaints as unknown as C[]) ?? [];
+  const diagnoses = (v.visit_diagnoses as unknown as { diagnosis_text: string }[]) ?? [];
+  const investigations = (v.visit_investigations as unknown as { test_name: string }[]) ?? [];
+  const meds = rx?.prescription_items ?? [];
+
+  const waSummary = [
+    clinic?.name,
+    `${p.full_name} (${p.patient_no}) · ${fmtDate(v.visit_date)}`,
+    complaints.length > 0
+      ? `\nComplaint: ${complaints.map((c) =>
+          `${c.complaint}${c.duration_value ? ` (${c.duration_value} ${c.duration_unit ?? ""})` : ""}`
+        ).join(", ")}` : "",
+    diagnoses.length > 0
+      ? `Diagnosis: ${diagnoses.map((x) => x.diagnosis_text).join(", ")}` : "",
+    investigations.length > 0
+      ? `\nInvestigations: ${investigations.map((t) => t.test_name).join(", ")}` : "",
+    meds.length > 0
+      ? "\nPrescription:\n" + meds.map((m, i) =>
+          `${i + 1}. ${m.medicine_name}${m.strength ? " " + m.strength : ""} — ` +
+          [m.dose, m.frequency, m.duration].filter(Boolean).join(" · ")
+        ).join("\n") : "",
+    fu ? `\nFollow-up: ${fmtDate(fu.follow_up_date)}` : "",
+    inv ? `\nNet ${money(Number(inv.net_total))} · Paid ${money(Number(inv.paid_total))}` +
+          (Number(inv.due_total) > 0 ? ` · Due ${money(Number(inv.due_total))}` : "") : "",
+    `\n— ${d.full_name}`,
+  ].filter(Boolean).join("\n");
+
   return (
-    <PrintFrame size="A4">
+    <PrintFrame size="A4" whatsapp={p.phone} summary={waSummary}
+      backTo={`/patients/${v.patient_id}?tab=visits`}>
       <Letterhead clinic={clinic!} doctor={d} />
       <h2 className="display mb-4 text-[16px] font-semibold text-black">Visit summary</h2>
 

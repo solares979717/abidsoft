@@ -93,7 +93,7 @@ export default async function PatientProfile({
           </div>
         </div>
 
-        <nav className="flex gap-1 overflow-x-auto border-b border-line">
+        <nav className="flex flex-wrap gap-1 border-b border-line">
           {TABS.map((t) => (
             <Link
               key={t}
@@ -159,6 +159,9 @@ export default async function PatientProfile({
                   const d = v.doctors as unknown as { full_name: string } | null;
                   const dx = (v.visit_diagnoses as unknown as { diagnosis_text: string }[] ?? [])
                     .map((x) => x.diagnosis_text).join(", ");
+                  // The prescription written during this specific visit, so the
+                  // doctor can print or send it without opening the visit first.
+                  const visitRx = (rxs.data ?? []).find((r) => r.visit_id === v.id);
                   return (
                     <li key={v.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                       <div className="min-w-0">
@@ -168,9 +171,14 @@ export default async function PatientProfile({
                           {dx && <> · Diagnosis: {dx}</>}
                         </p>
                       </div>
-                      <div className="flex gap-3 text-[13px]">
+                      <div className="flex flex-wrap gap-3 text-[13px]">
                         <Link href={`/visits/${v.id}`} className="font-medium text-primary">Open visit</Link>
-                        <Link href={`/print/visit/${v.id}`} className="text-ink-2">Print visit summary</Link>
+                        {visitRx && (
+                          <Link href={`/print/prescription/${visitRx.id}`} className="text-ink-2">
+                            Prescription
+                          </Link>
+                        )}
+                        <Link href={`/print/visit/${v.id}`} className="text-ink-2">Full summary</Link>
                       </div>
                     </li>
                   );
@@ -191,14 +199,17 @@ export default async function PatientProfile({
                   const d = r.doctors as unknown as { full_name: string } | null;
                   return (
                     <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                      <div>
+                      <div className="min-w-0">
                         <p className="data text-[14px] font-medium">{fmtDate(r.created_at)}</p>
-                        <p className="text-[13px] text-ink-2">
+                        <p className="text-[13px] text-ink-2 break-words">
                           {d?.full_name} · {items.map((i) => i.medicine_name).join(", ")}
                         </p>
                       </div>
-                      <Link href={`/print/prescription/${r.id}`}
-                        className="text-[13px] font-medium text-primary">Open / Print</Link>
+                      <div className="flex flex-wrap gap-3 text-[13px]">
+                        <Link href={`/print/prescription/${r.id}`}
+                          className="font-medium text-primary">Open / Print / Send</Link>
+                        <Link href={`/visits/${r.visit_id}`} className="text-ink-2">Open visit</Link>
+                      </div>
                     </li>
                   );
                 })}
