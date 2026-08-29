@@ -29,15 +29,17 @@ const uid = () => Math.random().toString(36).slice(2, 9);
  * in the history, and no second consultation fee.
  */
 export function ContinueVisit({
-  visitId, investigations, medicines, adviceOptions, hasPrescription,
+  visitId, investigations, medicines, adviceOptions, hasPrescription, startOpen,
 }: {
   visitId: string;
   investigations: Inv[];
   medicines: { id: string; name: string; strength: string | null }[];
   adviceOptions: string[];
   hasPrescription: boolean;
+  /** Opened straight from the patient's visit list, so skip the prompt. */
+  startOpen?: boolean;
 }) {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = React.useState(!!startOpen);
   const [results, setResults] = React.useState<Record<string, { text: string; flag: string }>>(
     Object.fromEntries(investigations.map((i) => [i.id, {
       text: i.result_text ?? "", flag: i.result_flag ?? "",
@@ -106,18 +108,9 @@ export function ContinueVisit({
 
   if (!open) {
     return (
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-3 p-4">
-          <div>
-            <p className="text-[14px] font-medium">Patient came back with results?</p>
-            <p className="text-[13px] text-ink-3">
-              Record the results and add the prescription to this same visit — no second
-              visit, no second consultation fee.
-            </p>
-          </div>
-          <Button onClick={() => setOpen(true)}>Continue this visit</Button>
-        </div>
-      </Card>
+      <div className="flex justify-end">
+        <Button onClick={() => setOpen(true)}>Continue this visit</Button>
+      </div>
     );
   }
 

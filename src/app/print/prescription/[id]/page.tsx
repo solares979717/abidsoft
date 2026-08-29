@@ -3,11 +3,19 @@ import { notFound } from "next/navigation";
 import { PrintFrame } from "../../PrintFrame";
 import { Letterhead } from "../../Letterhead";
 import { fmtDate, ageFromDob } from "@/lib/utils";
+import { PrescriptionUrdu } from "./PrescriptionUrdu";
 
 export const dynamic = "force-dynamic";
 
-export default async function PrintPrescription({ params }: { params: Promise<{ id: string }> }) {
+export default async function PrintPrescription({
+  params, searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ lang?: string }>;
+}) {
   const { id } = await params;
+  const { lang } = await searchParams;
+  const urduMode = lang === "ur";
   const sb = await createClient();
 
   const { data: rx } = await sb.from("prescriptions")
@@ -21,7 +29,7 @@ export default async function PrintPrescription({ params }: { params: Promise<{ 
   const { data: clinic } = await sb.from("clinics")
     .select("name, address, phone_1, phone_2").limit(1).single();
 
-  const [{ data: dx }, { data: fu }, { data: allergy }, { data: cc }, { data: tests }] =
+  const [{ data: dx }, { data: fu }, { data: allergy }, { data: cc }, { data: tests }, { data: vt }] =
     await Promise.all([
       sb.from("visit_diagnoses").select("diagnosis_text").eq("visit_id", rx.visit_id),
       sb.from("followups").select("follow_up_date").eq("visit_id", rx.visit_id).maybeSingle(),
@@ -29,6 +37,7 @@ export default async function PrintPrescription({ params }: { params: Promise<{ 
       sb.from("visit_complaints").select("complaint, duration_value, duration_unit")
         .eq("visit_id", rx.visit_id).order("sort_order"),
       sb.from("visit_investigations").select("test_name, category, result_text, result_flag").eq("visit_id", rx.visit_id),
+      sb.from("vitals").select("*").eq("visit_id", rx.visit_id).maybeSingle(),
     ]);
 
   const p = rx.patients as unknown as { full_name: string; patient_no: string; dob: string; gender: string; phone: string };
@@ -42,6 +51,16 @@ export default async function PrintPrescription({ params }: { params: Promise<{ 
   const waSummary = [
     clinic?.name,
     `${p.full_name} (${p.patient_no}) · ${fmtDate(rx.created_at)}`,
+    vt && [vt.bp_systolic && `BP ${vt.bp_systolic}/${vt.bp_diastolic}`,
+           vt.pulse && `Pulse ${vt.pulse}`,
+           vt.temperature && `Temp ${vt.temperature}°${vt.temp_unit ?? "C"}`,
+           vt.weight_kg && `Wt ${vt.weight_kg} kg`,
+           vt.spo2 && `SpO₂ ${vt.spo2}%`].filter(Boolean).length > 0
+      ? `\nVitals: ${[vt.bp_systolic && `BP ${vt.bp_systolic}/${vt.bp_diastolic}`,
+           vt.pulse && `Pulse ${vt.pulse}`,
+           vt.temperature && `Temp ${vt.temperature}°${vt.temp_unit ?? "C"}`,
+           vt.weight_kg && `Wt ${vt.weight_kg} kg`,
+           vt.spo2 && `SpO₂ ${vt.spo2}%`].filter(Boolean).join(", ")}` : "",
     (cc ?? []).length > 0
       ? `\nComplaint: ${(cc ?? []).map((c) =>
           `${c.complaint}${c.duration_value ? ` (${c.duration_value} ${c.duration_unit ?? ""})` : ""}`
@@ -63,7 +82,28 @@ export default async function PrintPrescription({ params }: { params: Promise<{ 
 
   return (
     <PrintFrame size="A5" whatsapp={p.phone} summary={waSummary}
+      langSwitch={{ current: urduMode ? "ur" : "en" }}
       backTo={`/patients/${rx.patient_id}?tab=visits`}>
+      {urduMode ? (
+        <PrescriptionUrdu
+          clinic={clinic!}
+          doctor={d}
+          patient={{
+            full_name: p.full_name, patient_no: p.patient_no,
+            age: ageFromDob(p.dob), gender: p.gender, phone: p.phone,
+          }}
+          date={rx.created_at}
+          vitals={vt as Record<string, number | string> | null}
+          complaints={cc ?? []}
+          diagnoses={(dx ?? []).map((x) => x.diagnosis_text)}
+          items={items}
+          tests={tests ?? []}
+          advice={rx.advice}
+          followUp={fu?.follow_up_date ?? null}
+          allergies={allergies}
+        />
+      ) : (
+      <>
       <Letterhead clinic={clinic!} doctor={d} />
 
       <section className="mb-4 flex items-start justify-between gap-4 rounded-[4px] bg-[#F5F7FA] px-3 py-2.5 text-[11px] text-black">
@@ -83,6 +123,24 @@ export default async function PrintPrescription({ params }: { params: Promise<{ 
           ⚠ ALLERGY — {allergies.map((a) => [a.allergy_type, a.detail].filter(Boolean).join(": ")).join("; ")}
         </p>
       )}
+
+      {vt && (() => {
+        const items = [
+          vt.bp_systolic && `BP ${vt.bp_systolic}/${vt.bp_diastolic}`,
+          vt.pulse && `Pulse ${vt.pulse}`,
+          vt.temperature && `Temp ${vt.temperature}°${vt.temp_unit ?? "C"}`,
+          vt.weight_kg && `Wt ${vt.weight_kg} kg`,
+          vt.height_cm && `Ht ${vt.height_cm} cm`,
+          vt.spo2 && `SpO₂ ${vt.spo2}%`,
+          vt.resp_rate && `RR ${vt.resp_rate}`,
+        ].filter(Boolean) as string[];
+        if (items.length === 0) return null;
+        return (
+          <p className="data mb-3 flex flex-wrap gap-x-4 gap-y-1 rounded-[4px] bg-[#F5F7FA] px-3 py-2 text-[11px] text-black">
+            {items.map((t, i) => <span key={i}>{t}</span>)}
+          </p>
+        );
+      })()}
 
       {(cc ?? []).length > 0 && (
         <p className="mb-2 text-[11px] text-black">
@@ -168,6 +226,8 @@ export default async function PrintPrescription({ params }: { params: Promise<{ 
           {d.full_name}
         </div>
       </footer>
+      </>
+      )}
     </PrintFrame>
   );
 }

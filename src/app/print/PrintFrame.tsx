@@ -2,9 +2,10 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, MessageCircle } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 export function PrintFrame({
-  children, size = "A5", whatsapp, summary, backTo,
+  children, size = "A5", whatsapp, summary, backTo, langSwitch,
 }: {
   children: React.ReactNode;
   size?: "A4" | "A5";
@@ -16,8 +17,12 @@ export function PrintFrame({
    *  browser's own history would send the doctor back into the half-filled
    *  form, which is never what they want. */
   backTo?: string;
+  /** Shows an English / اردو toggle. The doctor picks which one to hand over. */
+  langSwitch?: { current: "en" | "ur" };
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
 
   React.useEffect(() => {
     const style = document.createElement("style");
@@ -50,7 +55,24 @@ export function PrintFrame({
         >
           <ArrowLeft size={16} /> Back
         </button>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {langSwitch && (
+            <div className="flex overflow-hidden rounded-[6px] border border-line-strong">
+              {([["en", "English"], ["ur", "اردو"]] as const).map(([code, label]) => {
+                const next = new URLSearchParams(params.toString());
+                if (code === "en") next.delete("lang"); else next.set("lang", code);
+                const href = `${pathname}${next.toString() ? `?${next}` : ""}`;
+                const active = langSwitch.current === code;
+                return (
+                  <a key={code} href={href}
+                    className={`flex h-[38px] items-center px-3 text-[14px] font-medium ${
+                      active ? "bg-primary text-white" : "bg-paper text-ink-2"}`}>
+                    {label}
+                  </a>
+                );
+              })}
+            </div>
+          )}
           {link && (
             <a
               href={link}

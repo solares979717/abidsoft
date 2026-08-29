@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&family=Instrument+Sans:wght@500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&family=Instrument+Sans:wght@500;600&family=Noto+Nastaliq+Urdu:wght@400;600&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -23,6 +23,7 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Instrument Sans", "Inter", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-urdu: "Noto Nastaliq Urdu", serif;
 
   --radius-sm: 4px;
   --radius: 6px;
@@ -78,4 +79,18 @@ html, body {
 }
 .table-scroll table {
   min-width: 640px;
+}
+
+/* Urdu on the printed prescription. Nastaliq needs noticeably more line
+   height than Latin type or the descenders collide. */
+.urdu {
+  font-family: var(--font-urdu);
+  direction: rtl;
+  line-height: 2.1;
+}
+.urdu-inline {
+  font-family: var(--font-urdu);
+  direction: rtl;
+  unicode-bidi: isolate;
+  line-height: 2;
 }

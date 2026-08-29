@@ -7,8 +7,14 @@ import { ContinueVisit } from "@/components/consultation/ContinueVisit";
 
 export const dynamic = "force-dynamic";
 
-export default async function VisitDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function VisitDetail({
+  params, searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ continue?: string }>;
+}) {
   const { id } = await params;
+  const { continue: startOpen } = await searchParams;
   const sb = await createClient();
 
   const { data: v } = await sb.from("visits")
@@ -63,6 +69,7 @@ export default async function VisitDetail({ params }: { params: Promise<{ id: st
         medicines={meds ?? []}
         adviceOptions={(adviceRows ?? []).map((a) => a.text)}
         hasPrescription={!!rx}
+        startOpen={startOpen === "1"}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -178,6 +185,7 @@ export default async function VisitDetail({ params }: { params: Promise<{ id: st
         medicines={meds ?? []}
         adviceOptions={(adviceRows ?? []).map((a) => a.text)}
         hasPrescription={!!rx}
+        startOpen={startOpen === "1"}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">

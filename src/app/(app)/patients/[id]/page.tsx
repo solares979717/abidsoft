@@ -172,7 +172,9 @@ export default async function PatientProfile({
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-3 text-[13px]">
-                        <Link href={`/visits/${v.id}`} className="font-medium text-primary">Open visit</Link>
+                        <Link href={`/visits/${v.id}?continue=1`}
+                          className="font-medium text-primary">Continue</Link>
+                        <Link href={`/visits/${v.id}`} className="text-ink-2">Open</Link>
                         {visitRx && (
                           <Link href={`/print/prescription/${visitRx.id}`} className="text-ink-2">
                             Prescription
