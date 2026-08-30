@@ -1,0 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&family=Instrument+Sans:wght@500;600&family=Noto+Nastaliq+Urdu:wght@400;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-ink:          #0F1D2E;
+  --color-ink-2:        #48586B;
+  --color-ink-3:        #7C8B9C;
+  --color-paper:        #FFFFFF;
+  --color-canvas:       #F5F7FA;
+  --color-line:         #E3E8EF;
+  --color-line-strong:  #CBD4E1;
+  --color-primary:      #1656A6;
+  --color-primary-deep: #0E3C77;
+  --color-primary-wash: #EAF1FA;
+  --color-focus:        #2B7FD9;
+
+  --color-warn:   #9A5B00;  --color-warn-bg:   #FDF3E3;
+  --color-info:   #0F6E77;  --color-info-bg:   #E4F4F5;
+  --color-ok:     #15703C;  --color-ok-bg:     #E7F4EB;
+  --color-danger: #A81E1E;  --color-danger-bg: #FBECEC;
+  --color-muted:  #5B6876;  --color-muted-bg:  #EEF1F4;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Instrument Sans", "Inter", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-urdu: "Noto Nastaliq Urdu", serif;
+
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 8px;
+
+  --shadow-card: 0 1px 2px rgb(15 29 46 / 0.06);
+  --shadow-pop: 0 8px 24px rgb(15 29 46 / 0.12);
+}
+
+html, body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  font-feature-settings: "cv05", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+.tnum { font-variant-numeric: tabular-nums; }
+
+*:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.label {
+  font-size: 12px; font-weight: 500; line-height: 16px;
+  letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-ink-2);
+}
+.data { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 500; }
+.display { font-family: var(--font-display); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------------------------------------------------- print layouts */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .print-sheet { box-shadow: none !important; margin: 0 !important; border: 0 !important; }
+  @page { margin: 12mm; }
+}
+
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll table {
+  min-width: 640px;
+}
+
+/* Urdu on the printed prescription. Nastaliq needs noticeably more line
+   height than Latin type or the descenders collide. */
+.urdu {
+  font-family: var(--font-urdu);
+  direction: rtl;
+  /* Nastaliq is a sloping script — at the sizes Latin text is comfortable
+     at, it becomes unreadable. It needs roughly 1.4x the size and a lot
+     more room between lines or the descenders of one line collide with
+     the next. */
+  font-size: 1.35em;
+  line-height: 2.6;
+}
+.urdu .latin {
+  font-family: var(--font-sans);
+  font-size: 0.74em;   /* cancels the 1.35em above, back to normal size */
+  line-height: 1.5;
+}
+.urdu-inline {
+  font-family: var(--font-urdu);
+  direction: rtl;
+  unicode-bidi: isolate;
+  line-height: 2;
+}
