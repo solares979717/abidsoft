@@ -176,7 +176,7 @@ export function Workspace({
   const vitalSummary = [
     vitals.bp_systolic && vitals.bp_diastolic && `BP ${vitals.bp_systolic}/${vitals.bp_diastolic}`,
     vitals.pulse && `Pulse ${vitals.pulse}`,
-    vitals.temperature_f && `Temp ${vitals.temperature_f}`,
+    vitals.temperature && `Temp ${vitals.temperature}°F`,
   ].filter(Boolean).join(" · ");
 
   /* ------------------------------------------------ catalog creation */
@@ -353,7 +353,11 @@ export function Workspace({
       complaints: complaints.map((c) => ({
         complaint: c.complaint, duration_value: c.duration_value, duration_unit: c.duration_unit,
       })),
-      vitals: Object.keys(vitals).length ? vitals : null,
+      // The form asks for °F because that is what the clinic uses; the
+      // column stores the number and the unit beside it.
+      vitals: Object.keys(vitals).length
+        ? { ...vitals, ...(vitals.temperature ? { temp_unit: "F" } : {}) }
+        : null,
       examination: { ...exam, other_findings: examOther },
       diagnoses: diagnoses.map((d, i) => ({
         diagnosis_id: d.id, diagnosis_text: d.text, is_primary: i === 0,
@@ -626,7 +630,7 @@ export function Workspace({
               </div>
             </FormRow>
             {([
-              ["pulse", "Pulse (bpm)"], ["temperature_f", "Temperature (°F)"],
+              ["pulse", "Pulse (bpm)"], ["temperature", "Temperature (°F)"],
               ["weight_kg", "Weight (kg)"], ["height_cm", "Height (cm)"],
               ["spo2", "SpO₂ (%)"], ["resp_rate", "Respiratory rate"],
             ] as const).map(([k, l]) => (

@@ -26,7 +26,7 @@ export default async function VisitDetail({
       visit_complaints(complaint, duration_value, duration_unit),
       vitals(*), physical_examinations(*), visit_diagnoses(diagnosis_text, is_primary),
       visit_investigations(id, test_name, category, status, result_text, result_flag),
-      prescriptions(id, advice, prescription_items(medicine_name, strength, dose, frequency, duration, route, instructions)),
+      prescriptions(id, advice, shared_at, prescription_items(medicine_id, medicine_name, strength, dose, frequency, duration, route, instructions)),
       followups(follow_up_date, interval_days),
       invoices(id, invoice_no, charges_total, discount, net_total, paid_total, due_total)`)
     .eq("id", id).eq("is_deleted", false).single();
@@ -34,10 +34,13 @@ export default async function VisitDetail({
 
   const invIds = ((v.visit_investigations as unknown as { id: string }[]) ?? []).map((x) => x.id);
 
-  const [{ data: meds }, { data: adviceRows }, { data: reportFiles }] = await Promise.all([
+  const [{ data: meds }, { data: adviceRows }, { data: dxOptions }, { data: cxOptions },
+    { data: reportFiles }] = await Promise.all([
     sb.from("medicines").select("id, name, strength").eq("is_active", true)
       .order("name").limit(600),
     sb.from("advice_catalog").select("text").eq("is_active", true).order("sort_order"),
+    sb.from("diagnosis_catalog").select("id, name").eq("is_active", true).order("name").limit(200),
+    sb.from("complaint_catalog").select("name").eq("is_active", true).order("name"),
     invIds.length > 0
       ? sb.from("investigation_reports")
           .select("id, investigation_id, file_name, storage_path, uploaded_at")
@@ -80,6 +83,39 @@ export default async function VisitDetail({
         adviceOptions={(adviceRows ?? []).map((a) => a.text)}
         hasPrescription={!!rx}
         startOpen={startOpen === "1"}
+        diagnosisOptions={dxOptions ?? []}
+        complaintOptions={(cxOptions ?? []).map((c) => c.name)}
+        existing={{
+          complaints: ((v.visit_complaints as unknown as
+            { complaint: string; duration_value: number | null; duration_unit: string | null }[]) ?? [])
+            .map((c) => ({
+              complaint: c.complaint,
+              duration_value: c.duration_value != null ? String(c.duration_value) : "",
+              duration_unit: c.duration_unit
+                ? c.duration_unit.charAt(0).toUpperCase() + c.duration_unit.slice(1)
+                : "Days",
+            })),
+          diagnoses: ((v.visit_diagnoses as unknown as { diagnosis_text: string }[]) ?? [])
+            .map((x) => x.diagnosis_text),
+          vitals: Object.fromEntries(
+            Object.entries((vitals ?? {}) as Record<string, unknown>)
+              .filter(([k]) => ["bp_systolic","bp_diastolic","pulse","temperature","weight_kg","spo2"].includes(k))
+              .map(([k, val]) => [k, val == null ? "" : String(val)])
+          ),
+          privateNote: (v.private_notes as string) ?? "",
+          prescriptionId: rx?.id ?? null,
+          prescriptionShared: !!(rx as { shared_at?: string } | null)?.shared_at,
+          prescriptionItems: ((rx?.prescription_items as unknown as {
+            medicine_name: string; strength: string | null; dose: string | null;
+            frequency: string | null; duration: string | null; route: string | null;
+            instructions: string[] | null; medicine_id: string | null;
+          }[]) ?? []).map((m, i) => ({
+            key: `old-${i}`, medicine_id: m.medicine_id ?? null,
+            medicine_name: m.medicine_name, strength: m.strength ?? "",
+            dose: m.dose ?? "", frequency: m.frequency ?? "", duration: m.duration ?? "",
+            route: m.route ?? "Oral", instructions: m.instructions ?? [],
+          })),
+        }}
         recorded={{
           date: fmtDate(v.visit_date),
           complaints: ((v.visit_complaints as unknown as { complaint: string }[]) ?? [])
@@ -111,7 +147,8 @@ export default async function VisitDetail({
           <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3">
             {vitals ? [
               ["BP", vitals.bp_systolic && `${vitals.bp_systolic}/${vitals.bp_diastolic}`],
-              ["Pulse", vitals.pulse], ["Temp °F", vitals.temperature_f],
+              ["Pulse", vitals.pulse],
+              ["Temp", vitals.temperature && `${vitals.temperature}°${vitals.temp_unit ?? "C"}`],
               ["Weight kg", vitals.weight_kg], ["Height cm", vitals.height_cm],
               ["SpO₂ %", vitals.spo2], ["Resp rate", vitals.resp_rate],
             ].map(([l, val]) => (

@@ -26,6 +26,11 @@ export default async function PrintPrescription({
     .eq("id", id).single();
   if (!rx) notFound();
 
+  // Opening this page means the patient is about to be handed the sheet, so
+  // remember it. A later edit can then warn that their copy will no longer
+  // match the record.
+  await sb.rpc("mark_prescription_shared", { p_id: rx.id });
+
   const { data: clinic } = await sb.from("clinics")
     .select("name, address, phone_1, phone_2").limit(1).single();
 

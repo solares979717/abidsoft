@@ -32,7 +32,8 @@ const uid = () => Math.random().toString(36).slice(2, 9);
  * in the history, and no second consultation fee.
  */
 export function ContinueVisit({
-  visitId, investigations, medicines, adviceOptions, hasPrescription, startOpen, recorded, children,
+  visitId, investigations, medicines, adviceOptions, hasPrescription, startOpen, recorded,
+  existing, diagnosisOptions, complaintOptions, children,
 }: {
   visitId: string;
   investigations: Inv[];
@@ -44,6 +45,19 @@ export function ContinueVisit({
   /** A one-line reminder of what was already written at the first visit, so
    *  the doctor can see it without the whole page repeating itself. */
   recorded?: { complaints: string[]; diagnoses: string[]; date: string };
+  /** What is already on the visit, so it can be corrected rather than only
+   *  added to. The results often change the diagnosis. */
+  existing?: {
+    complaints: { complaint: string; duration_value: string; duration_unit: string }[];
+    diagnoses: string[];
+    vitals: Record<string, string>;
+    privateNote: string;
+    prescriptionId: string | null;
+    prescriptionShared: boolean;
+    prescriptionItems: RxRow[];
+  };
+  diagnosisOptions?: { id: string; name: string }[];
+  complaintOptions?: string[];
   /** The read-only visit record. Hidden while the panel is open so the
    *  doctor sees one thing at a time instead of the same information twice. */
   children?: React.ReactNode;
@@ -61,6 +75,15 @@ export function ContinueVisit({
   // came back — belongs on this visit, not on a separate one.
   const [followupDays, setFollowupDays] = React.useState<number | null>(null);
   const [followupDate, setFollowupDate] = React.useState("");
+
+  // Sections already on the visit, loaded so they can be corrected.
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [cx, setCx] = React.useState(existing?.complaints ?? []);
+  const [dx, setDx] = React.useState<string[]>(existing?.diagnoses ?? []);
+  const [vitals, setVitals] = React.useState<Record<string, string>>(existing?.vitals ?? {});
+  const [note, setNote] = React.useState(existing?.privateNote ?? "");
+  // The prescription already written, editable in place.
+  const [oldRx, setOldRx] = React.useState<RxRow[]>(existing?.prescriptionItems ?? []);
   const [busy, setBusy] = React.useState(false);
   const toast = useToast();
   const router = useRouter();
@@ -83,7 +106,7 @@ export function ContinueVisit({
       return (r?.text ?? "") !== (inv.result_text ?? "") ||
              (r?.flag ?? "") !== (inv.result_flag ?? "");
     });
-    if (rx.length === 0 && advice.length === 0 && !adviceOther.trim() && !anyResult && !followupDate) {
+    if (!editOpen && rx.length === 0 && advice.length === 0 && !adviceOther.trim() && !anyResult && !followupDate) {
       return toast("Type a result, or add a medicine, advice or a follow-up.", "error");
     }
     if (rx.some((r) => !r.medicine_name.trim())) {
@@ -103,7 +126,55 @@ export function ContinueVisit({
       });
     }
 
+    // Corrections to what was already on the visit go first, so that if the
+    // doctor only fixed the diagnosis and added nothing new, it still saves.
+    if (editOpen) {
+      const { error: editErr } = await sb.rpc("update_visit_details", {
+        payload: {
+          visit_id: visitId,
+          complaints: cx.filter((c) => c.complaint.trim()),
+          diagnoses: dx.filter(Boolean).map((t, i) => ({
+            diagnosis_text: t, is_primary: i === 0,
+          })),
+          vitals,
+          private_notes: note,
+        },
+      });
+      if (editErr) {
+        setBusy(false);
+        return toast(`Couldn't save the corrections. ${editErr.message}`, "error");
+      }
+
+      // A prescription already written can be corrected in place. If the
+      // patient has already been given it, ask first — the paper they are
+      // holding will no longer match the record.
+      if (existing?.prescriptionId && oldRx.length > 0) {
+        if (existing.prescriptionShared &&
+            !confirm("This prescription has already been printed or sent to the patient. Change it anyway?")) {
+          setBusy(false);
+          return;
+        }
+        const { error: rxErr } = await sb.rpc("replace_prescription_items", {
+          payload: {
+            prescription_id: existing.prescriptionId,
+            items: oldRx.map((r, i) => ({ ...r, sort_order: i })),
+          },
+        });
+        if (rxErr) {
+          setBusy(false);
+          return toast(`Couldn't update the prescription. ${rxErr.message}`, "error");
+        }
+      }
+    }
+
     const adviceText = [...advice, adviceOther.trim()].filter(Boolean).join(". ");
+    if (rx.length === 0 && !adviceText && !followupDate) {
+      setBusy(false);
+      toast("Visit updated");
+      router.refresh();
+      return;
+    }
+
     const { data, error } = await sb.rpc("continue_visit", {
       payload: {
         visit_id: visitId,
@@ -139,11 +210,140 @@ export function ContinueVisit({
       <CardHead title="Continue this visit"
         action={<button className="text-[13px] text-ink-2" onClick={() => setOpen(false)}>Close</button>} />
 
-      {recorded && (
-        <div className="border-b border-line bg-canvas px-4 py-2.5 text-[13px] text-ink-2">
-          <span className="text-ink-3">Already recorded {recorded.date}:</span>{" "}
-          {[recorded.complaints.join(", "), recorded.diagnoses.join(", ")]
-            .filter(Boolean).join(" · ") || "nothing yet"}
+      {recorded && !editOpen && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-canvas px-4 py-2.5 text-[13px] text-ink-2">
+          <span>
+            <span className="text-ink-3">Recorded {recorded.date}:</span>{" "}
+            {[recorded.complaints.join(", "), recorded.diagnoses.join(", ")]
+              .filter(Boolean).join(" · ") || "nothing yet"}
+          </span>
+          <button onClick={() => setEditOpen(true)}
+            className="font-medium text-primary">Correct this</button>
+        </div>
+      )}
+
+      {editOpen && (
+        <div className="space-y-4 border-b border-line bg-canvas px-4 py-4">
+          <div className="flex items-center justify-between">
+            <p className="label">Correcting what was recorded</p>
+            <button onClick={() => setEditOpen(false)} className="text-[13px] text-ink-2">
+              Leave unchanged
+            </button>
+          </div>
+
+          <FormRow label="Complaints">
+            {complaintOptions && complaintOptions.length > 0 && (
+              <ChipGrid
+                options={complaintOptions}
+                value={cx.map((c) => c.complaint)}
+                onChange={(v) => setCx(v.map((name) => {
+                  const had = cx.find((c) => c.complaint === name);
+                  return had ?? { complaint: name, duration_value: "", duration_unit: "Days" };
+                }))}
+              />
+            )}
+            <div className="mt-2 space-y-2">
+              {cx.map((c, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input className="flex-1" placeholder="Complaint" value={c.complaint}
+                    onChange={(e) => setCx((p) => p.map((x, j) =>
+                      j === i ? { ...x, complaint: e.target.value } : x))} />
+                  <Input mono className="w-20" placeholder="How long" value={c.duration_value}
+                    onChange={(e) => setCx((p) => p.map((x, j) =>
+                      j === i ? { ...x, duration_value: e.target.value } : x))} />
+                  <ChipGrid size="sm" multiple={false} options={["Hours","Days","Weeks","Months"]}
+                    value={[c.duration_unit]}
+                    onChange={(v) => setCx((p) => p.map((x, j) =>
+                      j === i ? { ...x, duration_unit: v[0] ?? "Days" } : x))} />
+                  <button onClick={() => setCx((p) => p.filter((_, j) => j !== i))}
+                    className="text-ink-3 hover:text-danger"><Trash2 size={14} /></button>
+                </div>
+              ))}
+              <Button size="sm" variant="secondary"
+                onClick={() => setCx((p) => [...p, { complaint: "", duration_value: "", duration_unit: "Days" }])}>
+                Add complaint
+              </Button>
+            </div>
+          </FormRow>
+
+          <FormRow label="Vitals">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {([["bp_systolic","BP systolic"],["bp_diastolic","BP diastolic"],
+                 ["pulse","Pulse"],["temperature","Temp °F"],
+                 ["weight_kg","Weight kg"],["spo2","SpO₂ %"]] as const).map(([k, l]) => (
+                <div key={k}>
+                  <p className="label mb-1">{l}</p>
+                  <Input mono value={vitals[k] ?? ""}
+                    onChange={(e) => setVitals((v) => ({ ...v, [k]: e.target.value }))} />
+                </div>
+              ))}
+            </div>
+          </FormRow>
+
+          <FormRow label="Diagnosis">
+            {diagnosisOptions && diagnosisOptions.length > 0 && (
+              <ChipGrid options={diagnosisOptions.slice(0, 24).map((d) => d.name)}
+                value={dx} onChange={setDx} />
+            )}
+            <div className="mt-2 space-y-2">
+              {dx.map((t, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input className="flex-1" value={t}
+                    onChange={(e) => setDx((p) => p.map((x, j) => j === i ? e.target.value : x))} />
+                  <button onClick={() => setDx((p) => p.filter((_, j) => j !== i))}
+                    className="text-ink-3 hover:text-danger"><Trash2 size={14} /></button>
+                </div>
+              ))}
+              <Button size="sm" variant="secondary" onClick={() => setDx((p) => [...p, ""])}>
+                Add diagnosis
+              </Button>
+            </div>
+          </FormRow>
+
+          {existing?.prescriptionId && oldRx.length > 0 && (
+            <FormRow label="Prescription already written">
+              {existing.prescriptionShared && (
+                <p className="mb-2 text-[12px] text-warn">
+                  This has already been printed or sent. Changing it means the patient&apos;s
+                  copy will not match the record — you will be asked to confirm.
+                </p>
+              )}
+              <div className="space-y-2">
+                {oldRx.map((r, i) => (
+                  <div key={r.key} className="rounded-[6px] border border-line bg-paper p-2">
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <span className="data w-4 text-[12px] text-ink-3">{i + 1}.</span>
+                      <Input className="flex-1 !font-semibold" value={r.medicine_name}
+                        onChange={(e) => setOldRx((p) => p.map((x, j) =>
+                          j === i ? { ...x, medicine_name: e.target.value } : x))} />
+                      <Input className="w-24" placeholder="Strength" value={r.strength}
+                        onChange={(e) => setOldRx((p) => p.map((x, j) =>
+                          j === i ? { ...x, strength: e.target.value } : x))} />
+                      <button onClick={() => setOldRx((p) => p.filter((_, j) => j !== i))}
+                        className="text-ink-3 hover:text-danger"><Trash2 size={14} /></button>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <Input mono placeholder="Dose" value={r.dose}
+                        onChange={(e) => setOldRx((p) => p.map((x, j) =>
+                          j === i ? { ...x, dose: e.target.value } : x))} />
+                      <ChipGrid size="sm" multiple={false} options={FREQUENCY_OPTIONS}
+                        value={[r.frequency]} onChange={(v) => setOldRx((p) => p.map((x, j) =>
+                          j === i ? { ...x, frequency: v[0] ?? "" } : x))} />
+                      <ChipGrid size="sm" multiple={false} options={DURATION_OPTIONS}
+                        value={[r.duration]} onChange={(v) => setOldRx((p) => p.map((x, j) =>
+                          j === i ? { ...x, duration: v[0] ?? "" } : x))} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </FormRow>
+          )}
+
+          <FormRow label="Private note"
+            hint="Only the clinic sees this. It never appears on the printed sheet or the patient portal.">
+            <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder="Notes for yourself about this patient…" />
+          </FormRow>
         </div>
       )}
 

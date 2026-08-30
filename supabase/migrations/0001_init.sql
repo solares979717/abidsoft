@@ -256,7 +256,10 @@ create table vitals (
   bp_systolic  int  check (bp_systolic between 40 and 300),
   bp_diastolic int  check (bp_diastolic between 20 and 200),
   pulse        int  check (pulse between 20 and 250),
-  temperature  numeric(4,1) check (temperature between 30 and 45),
+  temperature  numeric(4,1)
+    -- Accepts either scale: 30–45 °C or 86–113 °F. temp_unit says which.
+    check (temperature is null or temperature between 30 and 45
+           or temperature between 86 and 113),
   temp_unit    text not null default 'C' check (temp_unit in ('C','F')),
   weight_kg    numeric(5,1) check (weight_kg between 1 and 400),
   height_cm    numeric(5,1) check (height_cm between 20 and 250),
@@ -1132,22 +1135,30 @@ end $$;
 create trigger t_portal_same_clinic before insert or update on portal_tokens
   for each row execute function portal_token_same_clinic();
 
--- 5. A finalized prescription is clinical history. It is never edited in
---    place; a new visit creates a new prescription. Deleting one requires an
---    admin and leaves the audit row behind.
-create or replace function block_finalized_rx_edit() returns trigger
-language plpgsql set search_path = public as $$
-declare v_status rx_status_t;
+-- 5. A finalised prescription may be corrected — the patient is often still
+-- in the clinic waiting for results, and the prescription is frequently
+-- written only once they are back. The safeguard is that every edit is
+-- written to the audit log, not that the edit is refused.
+create or replace function audit_rx_item_edit() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare v_status rx_status_t; v_shared timestamptz; v_rx uuid;
 begin
-  select status into v_status from prescriptions
-   where id = coalesce(new.prescription_id, old.prescription_id);
+  v_rx := coalesce(new.prescription_id, old.prescription_id);
+  select status, shared_at into v_status, v_shared from prescriptions where id = v_rx;
   if v_status = 'finalized' then
-    raise exception 'This prescription is finalized. Copy it into a new prescription instead of editing it.';
+    perform log_audit(
+      case when tg_op = 'DELETE' then 'prescription_item_removed'
+           else 'prescription_item_edited' end,
+      'prescriptions', v_rx,
+      jsonb_build_object(
+        'medicine', coalesce(new.medicine_name, old.medicine_name),
+        'was_already_given_to_patient', v_shared is not null));
   end if;
   return coalesce(new, old);
 end $$;
-create trigger t_rx_items_immutable before update or delete on prescription_items
-  for each row execute function block_finalized_rx_edit();
+
+create trigger t_rx_items_audited before update or delete on prescription_items
+  for each row execute function audit_rx_item_edit();
 
 -- 6. Patient-facing identifiers and clinic ownership are never rewritten.
 create or replace function block_identity_rewrite() returns trigger
@@ -1177,6 +1188,10 @@ language sql security definer set search_path = public as $$
      set view_count = view_count + 1, last_viewed_at = now()
    where token_hash = p_token_hash;
 $$;
+
+-- Prescriptions remember when the patient was first given them, so the app
+-- can warn before changing one they already have.
+alter table prescriptions add column if not exists shared_at timestamptz;
 
 -- =====================================================================
 -- GRANTS — least privilege

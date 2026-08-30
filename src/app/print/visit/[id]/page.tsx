@@ -108,7 +108,8 @@ export default async function PrintVisit({ params }: { params: Promise<{ id: str
         {vt ? (
           <p className="data flex flex-wrap gap-x-4 gap-y-1">
             {[vt.bp_systolic && `BP ${vt.bp_systolic}/${vt.bp_diastolic}`,
-              vt.pulse && `Pulse ${vt.pulse}`, vt.temperature_f && `Temp ${vt.temperature_f}°F`,
+              vt.pulse && `Pulse ${vt.pulse}`,
+              vt.temperature && `Temp ${vt.temperature}°${vt.temp_unit ?? "C"}`,
               vt.weight_kg && `Wt ${vt.weight_kg} kg`, vt.spo2 && `SpO₂ ${vt.spo2}%`,
             ].filter(Boolean).map((s, i) => <span key={i}>{s}</span>)}
           </p>
