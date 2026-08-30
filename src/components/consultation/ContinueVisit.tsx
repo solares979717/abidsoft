@@ -8,7 +8,7 @@ import { ChipGrid } from "@/components/ui/ChipGrid";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { useToast } from "@/components/ui/Toast";
 import { useRouter } from "next/navigation";
-import { FREQUENCY_OPTIONS, ROUTE_OPTIONS, DURATION_OPTIONS } from "@/lib/constants";
+import { FREQUENCY_OPTIONS, ROUTE_OPTIONS, DURATION_OPTIONS, INSTRUCTION_OPTIONS } from "@/lib/constants";
 import { Trash2 } from "lucide-react";
 
 type Inv = {
@@ -18,6 +18,7 @@ type Inv = {
 type RxRow = {
   key: string; medicine_id: string | null; medicine_name: string; strength: string;
   dose: string; frequency: string; duration: string; route: string;
+  instructions: string[];
 };
 
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -63,39 +64,39 @@ export function ContinueVisit({
     setRx((r) => [...r, {
       key: uid(), medicine_id: o?.id ?? null, medicine_name: o?.label ?? "",
       strength: "", dose: "1", frequency: "BD", duration: "5 days", route: ROUTE_OPTIONS[0],
+      instructions: [],
     }]);
   }
   function setRow(key: string, patch: Partial<RxRow>) {
     setRx((r) => r.map((x) => (x.key === key ? { ...x, ...patch } : x)));
   }
 
-  async function saveResults() {
-    setBusy(true);
-    let failed = 0;
-    for (const inv of investigations) {
-      const r = results[inv.id];
-      const changed = (r?.text ?? "") !== (inv.result_text ?? "") ||
-                      (r?.flag ?? "") !== (inv.result_flag ?? "");
-      if (!changed) continue;
-      const { error } = await sb.rpc("set_investigation_result", {
-        p_id: inv.id, p_text: r.text, p_flag: r.flag || null,
-      });
-      if (error) failed++;
-    }
-    setBusy(false);
-    if (failed > 0) return toast(`${failed} result(s) couldn't be saved.`, "error");
-    toast("Results saved");
-    router.refresh();
-  }
-
   async function addToVisit() {
-    if (rx.length === 0 && advice.length === 0 && !adviceOther.trim()) {
-      return toast("Add a medicine or some advice first.", "error");
+    const anyResult = investigations.some((inv) => {
+      const r = results[inv.id];
+      return (r?.text ?? "") !== (inv.result_text ?? "") ||
+             (r?.flag ?? "") !== (inv.result_flag ?? "");
+    });
+    if (rx.length === 0 && advice.length === 0 && !adviceOther.trim() && !anyResult) {
+      return toast("Type a result, or add a medicine or advice.", "error");
     }
     if (rx.some((r) => !r.medicine_name.trim())) {
       return toast("Every row needs a medicine name.", "error");
     }
     setBusy(true);
+
+    // Save any typed results first, so the doctor doesn't have to remember
+    // to press two buttons. Nothing typed means nothing to save.
+    for (const inv of investigations) {
+      const r = results[inv.id];
+      const changed = (r?.text ?? "") !== (inv.result_text ?? "") ||
+                      (r?.flag ?? "") !== (inv.result_flag ?? "");
+      if (!changed) continue;
+      await sb.rpc("set_investigation_result", {
+        p_id: inv.id, p_text: r?.text ?? "", p_flag: r?.flag || null,
+      });
+    }
+
     const adviceText = [...advice, adviceOther.trim()].filter(Boolean).join(". ");
     const { data, error } = await sb.rpc("continue_visit", {
       payload: {
@@ -168,10 +169,10 @@ export function ContinueVisit({
                 </div>
               ))}
             </div>
-            <Button variant="secondary" size="sm" className="mt-3"
-              onClick={saveResults} loading={busy}>
-              Save results
-            </Button>
+            <p className="mt-2 text-[12px] text-ink-3">
+              Results are saved when you press <b>Save</b> at the bottom — no need to
+              press anything here.
+            </p>
           </div>
         )}
 
@@ -215,6 +216,11 @@ export function ContinueVisit({
                   <ChipGrid size="sm" multiple={false} options={ROUTE_OPTIONS}
                     value={[r.route]} onChange={(v) => setRow(r.key, { route: v[0] ?? "" })} />
                 </div>
+                <div className="mt-2">
+                  <p className="label mb-1">When to take it</p>
+                  <ChipGrid size="sm" options={INSTRUCTION_OPTIONS} value={r.instructions}
+                    onChange={(v) => setRow(r.key, { instructions: v })} />
+                </div>
               </div>
             ))}
           </div>
@@ -230,7 +236,7 @@ export function ContinueVisit({
 
         <div className="flex justify-end gap-2 border-t border-line pt-4">
           <Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={addToVisit} loading={busy}>Add to this visit</Button>
+          <Button onClick={addToVisit} loading={busy}>Save</Button>
         </div>
       </div>
     </Card>

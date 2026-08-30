@@ -15,7 +15,7 @@ export default async function Reports({
     await Promise.all([
       sb.from("patients").select("id", { count: "exact", head: true }).eq("is_deleted", false),
       sb.from("patients").select("id", { count: "exact", head: true })
-        .gte("created_at", from.toISOString()),
+        .gte("created_at", from.toISOString()).eq("is_deleted", false),
       sb.from("visits").select("id, doctor_id, patient_id, visit_type, visit_date")
         .gte("visit_date", from.toISOString()).eq("is_deleted", false),
       sb.from("invoices").select("net_total, discount, paid_total, due_total, doctor_id, created_at")

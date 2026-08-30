@@ -12,9 +12,17 @@ import { money } from "@/lib/utils";
 import { Plus } from "lucide-react";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const SECTIONS = ["Clinic profile", "Doctors", "Appointment settings", "Medicines",
-  "Diagnoses", "Investigations", "Prescription templates", "WhatsApp", "Patient portal",
-  "Advice", "Storage", "Backup", "Recycle bin", "Security"];
+// Fourteen tabs in one row was too many to scan. They are the same
+// fourteen, grouped by what someone is actually trying to do: set the
+// clinic up, edit the lists used during a consultation, connect an outside
+// service, or look after the data itself.
+const GROUPS: { label: string; items: string[] }[] = [
+  { label: "Clinic", items: ["Clinic profile", "Doctors", "Appointment settings"] },
+  { label: "Lists", items: ["Medicines", "Diagnoses", "Investigations", "Advice", "Prescription templates"] },
+  { label: "Sending", items: ["WhatsApp", "Patient portal"] },
+  { label: "Data", items: ["Storage", "Backup", "Recycle bin", "Security"] },
+];
+const SECTIONS = GROUPS.flatMap((g) => g.items);
 
 type Row = Record<string, unknown> | null;
 type RxTemplateItem = {
@@ -38,6 +46,14 @@ export function SettingsClient({
   advice: { id: string; text: string }[];
 }) {
   const [tab, setTab] = React.useState(SECTIONS[0]);
+  const [group, setGroup] = React.useState(GROUPS[0].label);
+
+  // Picking a group moves to its first tab, so the page always shows
+  // something rather than an empty panel.
+  React.useEffect(() => {
+    const items = GROUPS.find((g) => g.label === group)?.items ?? [];
+    if (items.length > 0 && !items.includes(tab)) setTab(items[0]);
+  }, [group, tab]);
   const [busy, setBusy] = React.useState(false);
   const [usage, setUsage] = React.useState<Record<string, number> | null>(null);
   const [usageError, setUsageError] = React.useState("");
@@ -132,14 +148,26 @@ export function SettingsClient({
     <div className="space-y-5">
       <h1 className="display text-[24px]">Settings</h1>
 
-      <div className="flex flex-wrap gap-1 border-b border-line">
-        {SECTIONS.map((x) => (
-          <button key={x} onClick={() => setTab(x)}
-            className={`px-3 py-2.5 text-[14px] ${tab === x
-              ? "border-b-2 border-primary font-medium text-primary" : "text-ink-2 hover:text-ink"}`}>
-            {x}
-          </button>
-        ))}
+      <div className="space-y-3 border-b border-line pb-3">
+        {/* group headings, then the tabs inside each */}
+        <div className="flex flex-wrap gap-1">
+          {GROUPS.map((g) => (
+            <button key={g.label} onClick={() => setGroup(g.label)}
+              className={`rounded-[4px] px-3 py-1.5 text-[13px] font-medium ${
+                group === g.label ? "bg-primary text-white" : "text-ink-2 hover:bg-canvas"}`}>
+              {g.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {(GROUPS.find((g) => g.label === group)?.items ?? []).map((x) => (
+            <button key={x} onClick={() => setTab(x)}
+              className={`rounded-[4px] px-3 py-1.5 text-[14px] ${tab === x
+                ? "bg-primary-wash font-medium text-primary" : "text-ink-2 hover:bg-canvas"}`}>
+              {x}
+            </button>
+          ))}
+        </div>
       </div>
 
       {tab === "Clinic profile" && (

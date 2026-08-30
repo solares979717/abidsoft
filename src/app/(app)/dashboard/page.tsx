@@ -21,7 +21,7 @@ export default async function Dashboard() {
       .eq("is_deleted", false)
       .order("scheduled_at"),
     sb.from("visits").select("id", { count: "exact", head: true })
-      .gte("visit_date", today.toISOString()),
+      .gte("visit_date", today.toISOString()).eq("is_deleted", false),
     sb.from("invoices").select("net_total, paid_total")
       .gte("created_at", today.toISOString()).eq("is_deleted", false),
     // Today's money, split by how it came in — for closing the register.
@@ -54,18 +54,23 @@ export default async function Dashboard() {
   const billedToday = (invToday.data ?? []).reduce((a, i) => a + Number(i.net_total ?? 0), 0);
   const outstanding = (dues.data ?? []).reduce((a, i) => a + Number(i.due_total ?? 0), 0);
 
+  // Four numbers, not nine. Waiting / In consultation / Completed were
+  // three tiles saying what the queue below already shows row by row, and
+  // pending follow-ups and missed appointments each have their own card or
+  // view — a wall of numbers is harder to read than a few that matter.
   const tiles = [
     { label: "Today's patients", value: String(visitsToday.count ?? 0) },
-    { label: "Waiting", value: String(count("waiting")) },
-    { label: "In consultation", value: String(count("in_consultation")) },
-    { label: "Completed", value: String(count("completed")) },
     { label: "Today's appointments", value: String(rows.length), href: "/appointments" },
     { label: "Today's revenue", value: money(revenue) },
     { label: "Outstanding due", value: money(outstanding), danger: outstanding > 0, href: "/billing" },
-    { label: "Pending follow-ups", value: String(followups.count ?? 0), href: "/appointments?view=followups" },
-    { label: "Missed appointments", value: String(missed.count ?? 0),
-      danger: (missed.count ?? 0) > 0, href: "/appointments?view=missed" },
   ];
+
+  // The queue's own breakdown, shown as one line under it rather than as tiles.
+  const queueLine = [
+    count("waiting") > 0 && `${count("waiting")} waiting`,
+    count("in_consultation") > 0 && `${count("in_consultation")} in consultation`,
+    count("completed") > 0 && `${count("completed")} completed`,
+  ].filter(Boolean).join(" · ");
 
   return (
     <div className="space-y-5">
@@ -155,10 +160,18 @@ export default async function Dashboard() {
 
       <Card>
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
-          <h2 className="text-[15px] font-semibold">Today&apos;s queue</h2>
-          <Link href="/appointments" className="text-[13px] font-medium text-primary">
-            All appointments
-          </Link>
+          <div>
+            <h2 className="text-[15px] font-semibold">Today&apos;s queue</h2>
+            {queueLine && <p className="text-[12px] text-ink-3">{queueLine}</p>}
+          </div>
+          <div className="flex gap-3 text-[13px] font-medium">
+            {(missed.count ?? 0) > 0 && (
+              <Link href="/appointments?view=missed" className="text-danger">
+                {missed.count} missed
+              </Link>
+            )}
+            <Link href="/appointments" className="text-primary">All appointments</Link>
+          </div>
         </div>
         {rows.length === 0 ? (
           <EmptyState message="No appointments today. Add one from Appointments." />

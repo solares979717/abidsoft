@@ -127,10 +127,11 @@ create table patients (
   clinic_id       uuid not null references clinics(id) on delete cascade,
   patient_no  text not null,                       -- PAT-000001
   full_name       text not null,
-  phone           text not null,
+  phone           text,
   whatsapp        text,
-  dob             date not null,
-  gender          gender_t not null,
+  dob             date,
+  dob_is_estimated boolean not null default false,
+  gender          gender_t,
   address         text,
   primary_doctor_id uuid references doctors(id) on delete set null,
   notes           text,                                -- private, never exposed to portal
@@ -139,7 +140,7 @@ create table patients (
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now(),
   constraint patients_number_unique unique (clinic_id, patient_no),
-  constraint patients_dob_sane check (dob > '1900-01-01' and dob <= current_date)
+  constraint patients_dob_sane check (dob is null or (dob > '1900-01-01' and dob <= current_date))
 );
 create index on patients(clinic_id, is_deleted);
 create index on patients(clinic_id, phone);
@@ -375,6 +376,10 @@ create table visit_investigations (
   test_name     text not null,
   price         numeric(10,2) not null default 0,
   status        inv_status_t not null default 'ordered',
+  result_text   text,
+  result_flag   text check (result_flag is null or result_flag in ('normal','abnormal')),
+  result_at     timestamptz,
+  result_by     uuid references profiles(id),
   ordered_at    timestamptz not null default now(),
   reviewed_at   timestamptz,
   reviewed_by   uuid references profiles(id)
@@ -400,7 +405,9 @@ create index on investigation_reports(investigation_id);
 create table appointments (
   id             uuid primary key default gen_random_uuid(),
   clinic_id      uuid not null references clinics(id) on delete cascade,
-  patient_id     uuid not null references patients(id) on delete cascade,
+  patient_id     uuid references patients(id) on delete cascade,
+  booking_name   text,
+  booking_phone  text,
   doctor_id      uuid not null references doctors(id),
   source_visit_id uuid references visits(id) on delete set null,
   scheduled_at   timestamptz not null,

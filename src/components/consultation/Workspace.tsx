@@ -413,26 +413,21 @@ export function Workspace({
       {/* ------------------------------------------------ sections */}
       <div className="min-w-0 space-y-2.5">
         {lastVisit && (
-          <div className="rounded-[6px] border border-line bg-primary-wash/40 px-4 py-3">
-            <p className="label mb-1.5 text-primary">
-              Last visit — {fmtDate(lastVisit.date)}{lastVisit.doctor ? ` · ${lastVisit.doctor}` : ""}
-            </p>
-            <div className="space-y-0.5 text-[13px] text-ink-2">
-              {lastVisit.diagnoses.length > 0 && (
-                <p><span className="text-ink-3">Diagnosis:</span> {lastVisit.diagnoses.join(", ")}</p>
-              )}
+          <details className="rounded-[6px] border border-line bg-primary-wash/40 px-4 py-2.5">
+            <summary className="cursor-pointer text-[13px] text-primary">
+              Last visit — {fmtDate(lastVisit.date)}
+              {lastVisit.diagnoses.length > 0 && `: ${lastVisit.diagnoses.join(", ")}`}
+            </summary>
+            <div className="mt-2 space-y-0.5 text-[13px] text-ink-2">
               {lastVisit.medicines.length > 0 && (
                 <p><span className="text-ink-3">Medicines:</span> {lastVisit.medicines.join(", ")}</p>
               )}
               {lastVisit.investigations.length > 0 && (
                 <p><span className="text-ink-3">Tests:</span> {lastVisit.investigations.join(", ")}</p>
               )}
-              {lastVisit.diagnoses.length === 0 && lastVisit.medicines.length === 0 &&
-               lastVisit.investigations.length === 0 && (
-                <p className="text-ink-3">No diagnosis, medicines or tests were recorded.</p>
-              )}
+              {lastVisit.doctor && <p className="text-ink-3">Seen by {lastVisit.doctor}</p>}
             </div>
-          </div>
+          </details>
         )}
         {catalogError && (
           <div className="flex items-start gap-2 rounded-[6px] border border-danger bg-danger-bg px-3 py-2.5 text-[13px] text-danger">
