@@ -52,11 +52,11 @@ export const UR_FREQUENCY: Record<string, string> = {
 
 /** 5 days, 1 month … */
 export const UR_DURATION: Record<string, string> = {
-  "3 days": "۳ دن",
-  "5 days": "۵ دن",
-  "7 days": "۷ دن",
-  "10 days": "۱۰ دن",
-  "14 days": "۱۴ دن",
+  "3 days": "3 دن",
+  "5 days": "5 دن",
+  "7 days": "7 دن",
+  "10 days": "10 دن",
+  "14 days": "14 دن",
   "1 month": "ایک ماہ",
   "2 months": "دو ماہ",
   "3 months": "تین ماہ",
@@ -95,8 +95,8 @@ export const UR_DOSE: Record<string, string> = {
   "1": "ایک",
   "2": "دو",
   "3": "تین",
-  "5 ml": "۵ ملی لیٹر",
-  "10 ml": "۱۰ ملی لیٹر",
+  "5 ml": "5 ملی لیٹر",
+  "10 ml": "10 ملی لیٹر",
   "1 puff": "ایک پف",
   "2 puffs": "دو پف",
 };
@@ -117,11 +117,17 @@ export const UR_ADVICE: Record<string, string> = {
   "Return immediately if it gets worse": "طبیعت بگڑنے پر فوراً رابطہ کریں",
 };
 
-/** Western digits to Urdu digits, for dates and numbers. */
+/**
+ * Numbers stay in Western digits on the Urdu sheet too.
+ *
+ * Arabic-Indic digits (۱۲۳) look correct typographically, but a BP of
+ * ۱۲۰/۸۰ or a dose of ۵ is slower to read at a glance and does not match
+ * what is printed on medicine boxes, lab reports or the patient's own
+ * phone. Numbers are the one thing that must never be misread.
+ */
 export function urNum(v: string | number | null | undefined): string {
   if (v === null || v === undefined) return "";
-  const map = "۰۱۲۳۴۵۶۷۸۹";
-  return String(v).replace(/\d/g, (d) => map[Number(d)]);
+  return String(v);
 }
 
 const UR_MONTHS = ["جنوری", "فروری", "مارچ", "اپریل", "مئی", "جون",
@@ -131,7 +137,8 @@ export function urDate(v: string | Date | null | undefined): string {
   if (!v) return "—";
   const d = new Date(v);
   if (isNaN(d.getTime())) return "—";
-  return `${urNum(d.getDate())} ${UR_MONTHS[d.getMonth()]} ${urNum(d.getFullYear())}`;
+  // Month name in Urdu, day and year in Western digits.
+  return `${d.getDate()} ${UR_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 /**

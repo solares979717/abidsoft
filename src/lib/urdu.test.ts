@@ -78,12 +78,14 @@ describe("ur()", () => {
 });
 
 describe("urNum", () => {
-  it("converts Western digits to Urdu digits", () => {
-    expect(urNum(625)).toBe("۶۲۵");
-    expect(urNum("2026")).toBe("۲۰۲۶");
+  // Numbers stay Western on the Urdu sheet: a BP or a dose must be readable
+  // at a glance and match what's printed on the medicine box.
+  it("keeps numbers in Western digits", () => {
+    expect(urNum(625)).toBe("625");
+    expect(urNum("2026")).toBe("2026");
   });
-  it("leaves non-digits alone", () => {
-    expect(urNum("5 ml")).toBe("۵ ml");
+  it("leaves text alone", () => {
+    expect(urNum("5 ml")).toBe("5 ml");
   });
   it("handles nothing safely", () => {
     expect(urNum(null)).toBe("");
@@ -92,8 +94,8 @@ describe("urNum", () => {
 });
 
 describe("urDate", () => {
-  it("writes a date in Urdu with Urdu digits", () => {
-    expect(urDate("2026-08-30")).toBe("۳۰ اگست ۲۰۲۶");
+  it("writes the month in Urdu but the numbers in Western digits", () => {
+    expect(urDate("2026-08-30")).toBe("30 اگست 2026");
   });
   it("returns a dash for a missing or invalid date", () => {
     expect(urDate(null)).toBe("—");

@@ -77,7 +77,7 @@ export default async function VisitDetail({
           diagnoses: ((v.visit_diagnoses as unknown as { diagnosis_text: string }[]) ?? [])
             .map((x) => x.diagnosis_text),
         }}
-      />
+      >
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -208,6 +208,7 @@ export default async function VisitDetail({
           ) : <p className="p-4 text-[13px] text-ink-3">No invoice.</p>}
         </Card>
       </div>
+      </ContinueVisit>
     </div>
   );
 }

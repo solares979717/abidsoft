@@ -29,7 +29,7 @@ const uid = () => Math.random().toString(36).slice(2, 9);
  * in the history, and no second consultation fee.
  */
 export function ContinueVisit({
-  visitId, investigations, medicines, adviceOptions, hasPrescription, startOpen, recorded,
+  visitId, investigations, medicines, adviceOptions, hasPrescription, startOpen, recorded, children,
 }: {
   visitId: string;
   investigations: Inv[];
@@ -41,6 +41,9 @@ export function ContinueVisit({
   /** A one-line reminder of what was already written at the first visit, so
    *  the doctor can see it without the whole page repeating itself. */
   recorded?: { complaints: string[]; diagnoses: string[]; date: string };
+  /** The read-only visit record. Hidden while the panel is open so the
+   *  doctor sees one thing at a time instead of the same information twice. */
+  children?: React.ReactNode;
 }) {
   const [open, setOpen] = React.useState(!!startOpen);
   const [results, setResults] = React.useState<Record<string, { text: string; flag: string }>>(
@@ -111,9 +114,12 @@ export function ContinueVisit({
 
   if (!open) {
     return (
-      <div className="flex justify-end">
-        <Button onClick={() => setOpen(true)}>Continue this visit</Button>
-      </div>
+      <>
+        <div className="flex justify-end">
+          <Button onClick={() => setOpen(true)}>Continue this visit</Button>
+        </div>
+        {children}
+      </>
     );
   }
 
