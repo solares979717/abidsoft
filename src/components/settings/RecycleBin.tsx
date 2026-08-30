@@ -39,7 +39,12 @@ export function RecycleBin() {
 
   async function restore(it: Item) {
     setBusy(it.id);
-    const { error } = await sb.rpc("restore_deleted", { p_entity: it.entity, p_id: it.id });
+    // Restoring a patient has to bring their visits, prescriptions,
+    // invoices and appointments back with them — the same way deleting
+    // took them all away.
+    const { error } = it.entity === "patient"
+      ? await sb.rpc("restore_patient", { p_patient: it.id })
+      : await sb.rpc("restore_deleted", { p_entity: it.entity, p_id: it.id });
     setBusy("");
     if (error) return toast(`Couldn't restore. ${error.message}`, "error");
     toast("Restored");

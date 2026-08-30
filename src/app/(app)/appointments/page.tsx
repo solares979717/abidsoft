@@ -6,6 +6,7 @@ import { fmtDate, fmtTime, titleFromSnake } from "@/lib/utils";
 import Link from "next/link";
 import { NewAppointment } from "@/components/appointments/NewAppointment";
 import { StatusControl } from "@/components/appointments/StatusControl";
+import { DeleteButton } from "@/components/ui/DeleteButton";
 
 export const dynamic = "force-dynamic";
 
@@ -174,6 +175,10 @@ export default async function Appointments({
                           </Link>
                         </>
                       )}
+                      <span className="ml-3 inline-block">
+                        <DeleteButton table="appointments" id={a.id} small
+                          label={`the appointment on ${fmtDate(a.scheduled_at)}`} />
+                      </span>
                     </td>
                   </tr>
                 );

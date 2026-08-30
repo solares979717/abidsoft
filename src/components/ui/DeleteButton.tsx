@@ -45,7 +45,12 @@ export function DeleteButton({
 
     setBusy(true);
     const sb = createClient();
-    const { error } = await sb.from(table).update({ is_deleted: true }).eq("id", id);
+    // Deleting a patient has to take their whole record with it — visits,
+    // prescriptions, invoices, appointments and documents — otherwise those
+    // keep appearing in the module lists with no patient attached.
+    const { error } = table === "patients"
+      ? await sb.rpc("delete_patient", { p_patient: id })
+      : await sb.from(table).update({ is_deleted: true }).eq("id", id);
     setBusy(false);
 
     if (error) return toast(`Couldn't delete. ${error.message}`, "error");

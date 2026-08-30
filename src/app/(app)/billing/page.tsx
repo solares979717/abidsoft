@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/States";
 import { money, fmtDate } from "@/lib/utils";
 import Link from "next/link";
 import { PaymentButton } from "@/components/billing/PaymentButton";
+import { DeleteButton } from "@/components/ui/DeleteButton";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +111,11 @@ export default async function Billing({
                       )}
                       <Link href={`/print/receipt/${r.id}`}
                         className="ml-3 text-[13px] text-ink-2">Receipt</Link>
+                      <span className="ml-3 inline-block">
+                        <DeleteButton table="invoices" id={r.id} small
+                          label={`invoice ${r.invoice_no}`}
+                          warning="Any payments recorded against it are hidden too." />
+                      </span>
                     </td>
                   </tr>
                 );

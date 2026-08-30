@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
 import { fmtDate } from "@/lib/utils";
 import Link from "next/link";
+import { DeleteButton } from "@/components/ui/DeleteButton";
 import { Input } from "@/components/ui/Field";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +21,9 @@ export default async function Prescriptions({
   }
 
   let query = sb.from("prescriptions")
-    .select("id, created_at, patient_id, visit_id, patients(full_name, patient_no, phone), doctors(full_name), prescription_items(medicine_name, dose, frequency, duration)")
-    .eq("is_deleted", false);
+    .select("id, created_at, patient_id, visit_id, patients!inner(full_name, patient_no, phone, is_deleted), doctors(full_name), prescription_items(medicine_name, dose, frequency, duration)")
+    .eq("is_deleted", false)
+    .eq("patients.is_deleted", false);
   if (ids) query = query.in("patient_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
 
   const { data } = await query.order("created_at", { ascending: false }).limit(60);
@@ -63,6 +65,8 @@ export default async function Prescriptions({
                   <div className="flex shrink-0 flex-col items-end gap-1 text-[13px] font-medium">
                     <Link href={`/visits/${r.visit_id}`} className="text-ink-2">Open visit</Link>
                     <Link href={`/print/prescription/${r.id}`} className="text-primary">Print</Link>
+                    <DeleteButton table="prescriptions" id={r.id} small
+                      label={`this prescription for ${p?.full_name ?? "the patient"}`} />
                   </div>
                 </li>
               );

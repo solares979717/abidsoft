@@ -13,8 +13,13 @@ export default async function Investigations({
   const sp = await searchParams;
   const sb = await createClient();
 
+  // Investigations belong to a visit and a patient. When either is deleted
+  // the test must stop appearing here too, otherwise the list fills up with
+  // rows whose patient no longer exists.
   let q = sb.from("visit_investigations")
-    .select("id, test_name, category, status, ordered_at, patient_id, visit_id, patients(full_name, patient_no), investigation_reports(id, file_name, storage_path)");
+    .select("id, test_name, category, status, result_text, result_flag, ordered_at, patient_id, visit_id, patients!inner(full_name, patient_no, is_deleted), visits!inner(is_deleted), investigation_reports(id, file_name, storage_path)")
+    .eq("patients.is_deleted", false)
+    .eq("visits.is_deleted", false);
   if (sp.category) q = q.eq("category", sp.category);
   if (sp.status) q = q.eq("status", sp.status);
 
@@ -68,7 +73,7 @@ export default async function Investigations({
                     <td className="px-4 text-[13px] text-ink-2">
                       {reports.length ? `${reports.length} file` : "—"}
                     </td>
-                    <td className="px-4 text-[13px]">
+                    <td className="px-4 text-[13px] whitespace-nowrap">
                       <Link href={`/visits/${r.visit_id}`} className="text-primary">Open visit</Link>
                     </td>
                   </tr>
