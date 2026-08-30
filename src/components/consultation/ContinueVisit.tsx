@@ -8,7 +8,9 @@ import { ChipGrid } from "@/components/ui/ChipGrid";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { useToast } from "@/components/ui/Toast";
 import { useRouter } from "next/navigation";
-import { FREQUENCY_OPTIONS, ROUTE_OPTIONS, DURATION_OPTIONS, INSTRUCTION_OPTIONS } from "@/lib/constants";
+import { FREQUENCY_OPTIONS, ROUTE_OPTIONS, DURATION_OPTIONS, INSTRUCTION_OPTIONS,
+  FOLLOWUP_OPTIONS } from "@/lib/constants";
+import { addDays, isoDate, fmtDate } from "@/lib/utils";
 import { Trash2 } from "lucide-react";
 
 type Inv = {
@@ -55,6 +57,10 @@ export function ContinueVisit({
   const [rx, setRx] = React.useState<RxRow[]>([]);
   const [advice, setAdvice] = React.useState<string[]>([]);
   const [adviceOther, setAdviceOther] = React.useState("");
+  // A follow-up decided now that the results are in — the reason the patient
+  // came back — belongs on this visit, not on a separate one.
+  const [followupDays, setFollowupDays] = React.useState<number | null>(null);
+  const [followupDate, setFollowupDate] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const toast = useToast();
   const router = useRouter();
@@ -77,8 +83,8 @@ export function ContinueVisit({
       return (r?.text ?? "") !== (inv.result_text ?? "") ||
              (r?.flag ?? "") !== (inv.result_flag ?? "");
     });
-    if (rx.length === 0 && advice.length === 0 && !adviceOther.trim() && !anyResult) {
-      return toast("Type a result, or add a medicine or advice.", "error");
+    if (rx.length === 0 && advice.length === 0 && !adviceOther.trim() && !anyResult && !followupDate) {
+      return toast("Type a result, or add a medicine, advice or a follow-up.", "error");
     }
     if (rx.some((r) => !r.medicine_name.trim())) {
       return toast("Every row needs a medicine name.", "error");
@@ -103,6 +109,10 @@ export function ContinueVisit({
         visit_id: visitId,
         prescription_items: rx.map((r, i) => ({ ...r, sort_order: i })),
         advice: adviceText,
+        followup: followupDate
+          ? { type: "scheduled", date: followupDate, time: "10:00",
+              interval_days: followupDays ?? null }
+          : { type: "none" },
       },
     });
     setBusy(false);
@@ -177,7 +187,19 @@ export function ContinueVisit({
         )}
 
         <div className="border-t border-line pt-4">
-          <p className="label mb-2">Prescription</p>
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <p className="label">Prescription</p>
+            {/* Written so far, in one line — with three or four medicines the
+                rows below are too tall to take in at a glance. */}
+            {rx.length > 0 && (
+              <p className="text-[13px] text-ink-2">
+                {rx.length} medicine{rx.length === 1 ? "" : "s"}:{" "}
+                <span className="font-medium text-ink">
+                  {rx.map((r) => r.medicine_name.trim() || "(unnamed)").join(", ")}
+                </span>
+              </p>
+            )}
+          </div>
           {hasPrescription && (
             <p className="mb-2 text-[12px] text-ink-3">
               This visit already has a prescription. Anything added here becomes a second,
@@ -194,10 +216,15 @@ export function ContinueVisit({
           />
 
           <div className="mt-3 space-y-2">
-            {rx.map((r) => (
-              <div key={r.key} className="rounded-[6px] border border-line p-3">
+            {rx.map((r, idx) => (
+              <div key={r.key} className="rounded-[6px] border border-line-strong p-3">
+                {/* The name in its own row and in bold — with several medicines
+                    on screen the doctor must be able to see at a glance what
+                    they have written so far. */}
                 <div className="mb-2 flex items-center gap-2">
-                  <Input className="flex-1" placeholder="Medicine" value={r.medicine_name}
+                  <span className="data w-5 shrink-0 text-[13px] text-ink-3">{idx + 1}.</span>
+                  <Input className="flex-1 !text-[15px] !font-semibold" placeholder="Medicine name"
+                    value={r.medicine_name}
                     onChange={(e) => setRow(r.key, { medicine_name: e.target.value })} />
                   <Input className="w-28" placeholder="Strength" value={r.strength}
                     onChange={(e) => setRow(r.key, { strength: e.target.value })} />
@@ -231,6 +258,33 @@ export function ContinueVisit({
             <ChipGrid options={adviceOptions} value={advice} onChange={setAdvice} />
             <Textarea className="mt-2" rows={2} placeholder="Anything else…"
               value={adviceOther} onChange={(e) => setAdviceOther(e.target.value)} />
+          </FormRow>
+        </div>
+
+        <div className="border-t border-line pt-4">
+          <FormRow label="Follow-up">
+            <ChipGrid
+              size="sm" multiple={false}
+              options={[...FOLLOWUP_OPTIONS.map((d) => `${d} days`), "No follow-up"]}
+              value={followupDays ? [`${followupDays} days`] : followupDate ? [] : ["No follow-up"]}
+              onChange={(v) => {
+                const pick = v[0];
+                if (!pick || pick === "No follow-up") {
+                  setFollowupDays(null); setFollowupDate("");
+                  return;
+                }
+                const days = Number(pick.split(" ")[0]);
+                setFollowupDays(days);
+                setFollowupDate(isoDate(addDays(days)));
+              }}
+            />
+            <div className="mt-2 flex items-center gap-2">
+              <Input type="date" className="w-44" value={followupDate}
+                onChange={(e) => { setFollowupDate(e.target.value); setFollowupDays(null); }} />
+              {followupDate && (
+                <span className="data text-[13px] text-primary">{fmtDate(followupDate)}</span>
+              )}
+            </div>
           </FormRow>
         </div>
 

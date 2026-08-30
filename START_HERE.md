@@ -112,7 +112,7 @@ Open your Vercel URL and log in with the email/password from step 2.
 At the **bottom of the left sidebar** you should see a small grey line:
 
 ```
-build 2026-08-31.7
+build 2026-08-31.8
 ```
 
 If that line is there, the latest code is live. Whenever you report a
