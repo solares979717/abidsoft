@@ -23,7 +23,7 @@ export const INSTRUCTION_OPTIONS = ["Before Meal", "After Meal", "With Food",
 export const FOLLOWUP_OPTIONS = [7, 14, 20, 30, 45, 60, 90];
 
 export const EXAM_PARTS = [
-  { key: "general_condition", label: "General condition" },
+  { key: "general", label: "General condition" },
   { key: "chest", label: "Chest" },
   { key: "cvs", label: "CVS" },
   { key: "abdomen", label: "Abdomen" },

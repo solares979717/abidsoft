@@ -163,9 +163,9 @@ export default async function VisitDetail({
         <Card>
           <CardHead title="Examination" />
           <div className="grid grid-cols-2 gap-3 p-4">
-            {exam ? ["general_condition", "chest", "cvs", "abdomen", "cns"].map((k) => (
+            {exam ? ["general", "chest", "cvs", "abdomen", "cns"].map((k) => (
               <div key={k}>
-                <p className="label">{k.replace("_", " ")}</p>
+                <p className="label">{k === "general" ? "General condition" : k.toUpperCase()}</p>
                 <p className="text-[14px]">{exam[k] ?? "—"}</p>
               </div>
             )) : <p className="text-[13px] text-ink-3">None recorded.</p>}
@@ -245,6 +245,16 @@ export default async function VisitDetail({
           </ol>
         </Card>
       </div>
+
+      {v.private_notes && (
+        <Card>
+          <CardHead title="Private note"
+            sub="Clinic only — never printed and never shown in the patient portal" />
+          <p className="whitespace-pre-wrap p-4 text-[14px] text-ink-2">
+            {v.private_notes as string}
+          </p>
+        </Card>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

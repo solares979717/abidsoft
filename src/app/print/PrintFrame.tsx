@@ -18,7 +18,7 @@ export function PrintFrame({
    *  form, which is never what they want. */
   backTo?: string;
   /** Shows an English / اردو toggle. The doctor picks which one to hand over. */
-  langSwitch?: { current: "en" | "ur" };
+  langSwitch?: { current: "en" | "ur" | "full" };
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -58,7 +58,7 @@ export function PrintFrame({
         <div className="flex flex-wrap gap-2">
           {langSwitch && (
             <div className="flex overflow-hidden rounded-[6px] border border-line-strong">
-              {([["en", "English"], ["ur", "اردو"]] as const).map(([code, label]) => {
+              {([["en", "Simple"], ["full", "Detailed"], ["ur", "اردو"]] as const).map(([code, label]) => {
                 const next = new URLSearchParams(params.toString());
                 if (code === "en") next.delete("lang"); else next.set("lang", code);
                 const href = `${pathname}${next.toString() ? `?${next}` : ""}`;

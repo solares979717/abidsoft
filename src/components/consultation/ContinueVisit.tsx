@@ -84,6 +84,14 @@ export function ContinueVisit({
   const [note, setNote] = React.useState(existing?.privateNote ?? "");
   // The prescription already written, editable in place.
   const [oldRx, setOldRx] = React.useState<RxRow[]>(existing?.prescriptionItems ?? []);
+
+  const vitalSummary = [
+    vitals.bp_systolic && `BP ${vitals.bp_systolic}/${vitals.bp_diastolic ?? "—"}`,
+    vitals.pulse && `Pulse ${vitals.pulse}`,
+    vitals.temperature && `Temp ${vitals.temperature}°F`,
+    vitals.spo2 && `SpO₂ ${vitals.spo2}%`,
+    vitals.weight_kg && `Wt ${vitals.weight_kg} kg`,
+  ].filter(Boolean) as string[];
   const [busy, setBusy] = React.useState(false);
   const toast = useToast();
   const router = useRouter();
@@ -211,14 +219,30 @@ export function ContinueVisit({
         action={<button className="text-[13px] text-ink-2" onClick={() => setOpen(false)}>Close</button>} />
 
       {recorded && !editOpen && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-canvas px-4 py-2.5 text-[13px] text-ink-2">
-          <span>
-            <span className="text-ink-3">Recorded {recorded.date}:</span>{" "}
-            {[recorded.complaints.join(", "), recorded.diagnoses.join(", ")]
-              .filter(Boolean).join(" · ") || "nothing yet"}
-          </span>
-          <button onClick={() => setEditOpen(true)}
-            className="font-medium text-primary">Correct this</button>
+        <div className="border-b border-line bg-canvas px-4 py-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0 space-y-1 text-[13px]">
+              <p className="text-ink-2">
+                <span className="text-ink-3">Recorded {recorded.date}:</span>{" "}
+                {[recorded.complaints.join(", "), recorded.diagnoses.join(", ")]
+                  .filter(Boolean).join(" · ") || "nothing yet"}
+              </p>
+              {/* Vitals belong on screen, not behind a button. When a patient
+                  comes back with results the first thing the doctor looks for
+                  is what the blood pressure was last time. */}
+              {vitalSummary.length > 0 ? (
+                <p className="data flex flex-wrap gap-x-4 gap-y-0.5 text-ink-2">
+                  {vitalSummary.map((t, i) => <span key={i}>{t}</span>)}
+                </p>
+              ) : (
+                <p className="text-[12px] text-ink-3">
+                  No vitals were recorded on this visit — add them with “Correct this”.
+                </p>
+              )}
+            </div>
+            <button onClick={() => setEditOpen(true)}
+              className="shrink-0 text-[13px] font-medium text-primary">Correct this</button>
+          </div>
         </div>
       )}
 

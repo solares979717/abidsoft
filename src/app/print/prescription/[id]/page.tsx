@@ -4,6 +4,7 @@ import { PrintFrame } from "../../PrintFrame";
 import { Letterhead } from "../../Letterhead";
 import { fmtDate, ageFromDob } from "@/lib/utils";
 import { PrescriptionUrdu } from "./PrescriptionUrdu";
+import { PrescriptionFull } from "./PrescriptionFull";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default async function PrintPrescription({
   const { id } = await params;
   const { lang } = await searchParams;
   const urduMode = lang === "ur";
+  const fullMode = lang === "full";
   const sb = await createClient();
 
   const { data: rx } = await sb.from("prescriptions")
@@ -34,7 +36,7 @@ export default async function PrintPrescription({
   const { data: clinic } = await sb.from("clinics")
     .select("name, address, phone_1, phone_2").limit(1).single();
 
-  const [{ data: dx }, { data: fu }, { data: allergy }, { data: cc }, { data: tests }, { data: vt }] =
+  const [{ data: dx }, { data: fu }, { data: allergy }, { data: cc }, { data: tests }, { data: vt }, { data: ex }] =
     await Promise.all([
       sb.from("visit_diagnoses").select("diagnosis_text").eq("visit_id", rx.visit_id),
       sb.from("followups").select("follow_up_date").eq("visit_id", rx.visit_id).maybeSingle(),
@@ -43,6 +45,7 @@ export default async function PrintPrescription({
         .eq("visit_id", rx.visit_id).order("sort_order"),
       sb.from("visit_investigations").select("test_name, category, result_text, result_flag").eq("visit_id", rx.visit_id),
       sb.from("vitals").select("*").eq("visit_id", rx.visit_id).maybeSingle(),
+      sb.from("physical_examinations").select("*").eq("visit_id", rx.visit_id).maybeSingle(),
     ]);
 
   const p = rx.patients as unknown as { full_name: string; patient_no: string; dob: string; gender: string; phone: string };
@@ -86,10 +89,29 @@ export default async function PrintPrescription({
   ].filter(Boolean).join("\n");
 
   return (
-    <PrintFrame size={urduMode ? "A4" : "A5"} whatsapp={p.phone} summary={waSummary}
-      langSwitch={{ current: urduMode ? "ur" : "en" }}
+    <PrintFrame size={urduMode || fullMode ? "A4" : "A5"} whatsapp={p.phone} summary={waSummary}
+      langSwitch={{ current: urduMode ? "ur" : fullMode ? "full" : "en" }}
       backTo={`/patients/${rx.patient_id}?tab=visits`}>
-      {urduMode ? (
+      {fullMode ? (
+        <PrescriptionFull
+          clinic={clinic!}
+          doctor={d}
+          patient={{
+            full_name: p.full_name, patient_no: p.patient_no,
+            dob: p.dob, gender: p.gender, phone: p.phone,
+          }}
+          date={rx.created_at}
+          vitals={vt as Record<string, number | string> | null}
+          complaints={cc ?? []}
+          diagnoses={(dx ?? []).map((x) => x.diagnosis_text)}
+          examination={ex as Record<string, string> | null}
+          items={items}
+          tests={tests ?? []}
+          advice={rx.advice}
+          followUp={fu?.follow_up_date ?? null}
+          allergies={allergies}
+        />
+      ) : urduMode ? (
         <PrescriptionUrdu
           clinic={clinic!}
           doctor={d}

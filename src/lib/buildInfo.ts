@@ -4,4 +4,4 @@
  * whether a deployment actually picked up the latest code — instead of
  * guessing from which features are visible.
  */
-export const BUILD_ID = "2026-09-01.1";
+export const BUILD_ID = "2026-09-01.3";
